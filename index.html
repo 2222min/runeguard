@@ -96,6 +96,34 @@
   #endTitle.lose{color:#ff7043}
   .badge{display:inline-block;font-size:11px;font-weight:800;padding:2px 9px;border-radius:20px;margin:0 3px}
   .fadein{animation:fin .5s ease}
+  /* 로그라이트 UI */
+  #runeBadge{margin-top:10px;font-size:13px;color:#c8b6ff;font-weight:800}
+  #runeBadge b{color:#e0c8ff;font-size:16px}
+  .altbtn{margin-top:10px;padding:9px 22px;font-size:14px;background:linear-gradient(180deg,#4a3d6a,#2f2648);border-color:#8a6ad0;border-radius:12px}
+  #metaScreen .card,#relicScreen .card{width:640px}
+  .metagrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:14px 0}
+  .metacell{background:#120e08;border:1px solid #3a3320;border-radius:11px;padding:9px 8px;text-align:left;cursor:pointer;transition:filter .1s,transform .05s;position:relative}
+  .metacell:hover:not(.maxed){filter:brightness(1.2)}
+  .metacell:active:not(.maxed){transform:translateY(1px)}
+  .metacell.maxed{opacity:.6;cursor:default}
+  .metacell .mi{font-size:18px}
+  .metacell .mn{font-size:13px;font-weight:800;color:#efe6d2;margin:2px 0}
+  .metacell .md{font-size:10.5px;color:#a89878;line-height:1.35;min-height:28px}
+  .metacell .mc{font-size:11px;font-weight:800;margin-top:4px}
+  .metacell .mc.ok{color:#c8b6ff}.metacell .mc.no{color:#8a7a5a}.metacell .mc.max{color:#7fd97e}
+  .metacell .lv{position:absolute;right:8px;top:8px;font-size:10px;color:#8fa3c0;font-weight:800}
+  .reliccards{display:flex;gap:12px;justify-content:center;margin:16px 0}
+  .reliccard{flex:1;max-width:170px;background:linear-gradient(180deg,#2a2440,#161326);border:2px solid #6a5aa0;border-radius:14px;
+    padding:16px 12px;cursor:pointer;transition:transform .1s,filter .1s,border-color .1s}
+  .reliccard:hover{transform:translateY(-4px);filter:brightness(1.2);border-color:#b89aff;box-shadow:0 8px 24px rgba(140,100,255,.3)}
+  .reliccard .ri{font-size:30px}
+  .reliccard .rn{font-size:15px;font-weight:900;color:#e0d0ff;margin:6px 0}
+  .reliccard .rd{font-size:11.5px;color:#b8a8d8;line-height:1.4}
+  #relicScreen h1{color:#c8b6ff}
+  #ownedRelics{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:6px;max-width:520px}
+  #ownedRelics span{font-size:16px;background:#1a1430;border:1px solid #4a3d6a;border-radius:8px;padding:2px 5px}
+  #hudRelics{position:absolute;left:8px;top:8px;display:flex;flex-wrap:wrap;gap:3px;max-width:120px;z-index:5;pointer-events:none}
+  #hudRelics span{font-size:15px;filter:drop-shadow(0 1px 2px #000)}
   @keyframes fin{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
   #toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(10,8,4,.92);border:1px solid #5a4a2e;color:#f0dca8;
     font-size:14px;font-weight:800;padding:9px 20px;border-radius:24px;opacity:0;transition:opacity .25s;z-index:40;pointer-events:none;white-space:nowrap}
@@ -107,6 +135,24 @@
     <canvas id="game" width="820" height="840"></canvas>
     <canvas id="gpu" width="820" height="840" style="position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;display:none"></canvas>
     <div id="toast"></div>
+    <div id="hudRelics"></div>
+    <div class="screen" id="metaScreen" style="display:none">
+      <div class="card fadein">
+        <h1 style="color:#c8b6ff">🔨 룬 제단</h1>
+        <h2>모은 룬으로 영구 강화 — 다음 원정부터 적용됩니다</h2>
+        <div id="runeHave" style="font-size:16px;font-weight:800;color:#e0c8ff;margin-bottom:6px">보유 룬 <b>0</b></div>
+        <div class="metagrid" id="metaGrid"></div>
+        <button class="bigbtn" id="metaBack">돌아가기</button>
+      </div>
+    </div>
+    <div class="screen" id="relicScreen" style="display:none">
+      <div class="card fadein">
+        <h1>🔮 유물 발견!</h1>
+        <h2 id="relicSub">하나를 선택해 원정에 새기세요</h2>
+        <div class="reliccards" id="relicCards"></div>
+        <button id="relicReroll" style="padding:8px 18px;font-size:13px">🎲 다시 뽑기 <span id="rerollN"></span></button>
+      </div>
+    </div>
     <div class="screen" id="startScreen">
       <div class="card fadein">
         <h1>🛡️ 룬가드 — 랜덤 용병 디펜스</h1>
@@ -122,6 +168,8 @@
         </div>
         <div id="diffPick"></div>
         <button class="bigbtn" id="startBtn">출격하기 ⚔️</button>
+        <div id="runeBadge">🔷 보유 룬 <b id="startRunes">0</b></div>
+        <div><button class="altbtn" id="metaBtn">🔨 룬 제단 (영구 강화)</button></div>
         <div style="margin-top:14px;font-size:12px;color:#6d5f42" id="bestLine"></div>
       </div>
     </div>
@@ -533,8 +581,8 @@ class Mob{
   die(){
     if(!this.alive) return;
     this.alive=false; S.kills++;
-    S.gold+=this.gold;
-    addText(this.x,this.y-10,'+'+this.gold,'#ffd54f',12);
+    const gg=Math.round(this.gold*MODS.gold); S.gold+=gg;
+    addText(this.x,this.y-10,'+'+gg,'#ffd54f',12); if(S.relicFlags&&S.relicFlags.execBoom&&Math.random()<.2) execBoom(this.x,this.y);
     if(this.gem){ S.gems+=this.gem; addText(this.x,this.y-26,'+'+this.gem+' 💎','#7ce8ff',13); AudioSys.gas(); log(`💎 <b>${this.boss.name}</b> 토벌! 마나 +${this.gem}`); }
     puff(this.x,this.y,this.boss?26:10,this.boss?'#ffb74d':'#9fb8d8');
     if(this.boss){ explode(this.x,this.y,70,'#ffb74d',{debris:22}); addShake(10); S.hitStop=.13; }
@@ -625,8 +673,9 @@ class Unit{
   }
   get grade(){ return this.def.grade; }
   buffMul(){ let m=1; S.units.forEach(u=>{ if(u!==this&&u.def.buff&&dist2(u.x,u.y,this.x,this.y)<150*150) m+=u.def.buff; }); return m; }
-  dmg(){ return this.def.dmg*STAR_MULT[this.star-1]*dmgMult()*this.buffMul(); }
-  aspd(){ return this.def.aspd*aspdMult(); }
+  rng(){ return this.def.range*MODS.range; }
+  dmg(){ const sb=1+(STAR_MULT[this.star-1]-1)*MODS.star; return this.def.dmg*sb*dmgMult()*this.buffMul()*MODS.atk; }
+  aspd(){ return this.def.aspd*aspdMult()*MODS.aspd; }
   dps(){
     let d=this.dmg()*this.aspd();
     if(this.def.crit) d*=1+this.def.crit.p*(this.def.crit.m-1);
@@ -680,7 +729,7 @@ class Unit{
     }
     this.cd-=dt;
     if(this.cd>0) return;
-    const R2=this.def.range*this.def.range;
+    const R2=this.rng()*this.rng();
     const inR=S.mobs.filter(m=>m.alive&&m.d>0&&dist2(this.x,this.y,m.x,m.y)<=R2);
     if(!inR.length) return;
     inR.sort((a,b)=>b.d-a.d); // 가장 오래 돈 몹 우선
@@ -691,7 +740,7 @@ class Unit{
   }
   attack(inR){
     const d=this.def, base=this.dmg();
-    const roll=()=>{ if(d.crit&&Math.random()<d.crit.p) return {v:base*d.crit.m,crit:true}; return {v:base,crit:false}; };
+    const roll=()=>{ const cp=(d.crit?d.crit.p:0)+MODS.crit, cm=d.crit?d.crit.m:2.2; if(cp>0&&Math.random()<cp) return {v:base*cm,crit:true}; return {v:base,crit:false}; };
     const napeOpt=extra=>Object.assign({napeChance:d.nape!=null?d.nape:1, execKill:d.exec&&Math.random()<d.exec.p},extra||{});
     const nTargets=d.targets||1;
     switch(d.type){
@@ -719,12 +768,12 @@ class Unit{
         AudioSys.slash();
         const tg=inR[0];
         const ang=Math.atan2(tg.y-this.y,tg.x-this.x);
-        const ex=this.x+Math.cos(ang)*d.range, ey=this.y+Math.sin(ang)*d.range;
+        const RG=this.rng(); const ex=this.x+Math.cos(ang)*RG, ey=this.y+Math.sin(ang)*RG;
         const {v,crit}=roll();
         S.mobs.forEach(m=>{
           if(!m.alive||m.d<=0) return;
           // 점-선분 거리
-          const t=clamp(((m.x-this.x)*(ex-this.x)+(m.y-this.y)*(ey-this.y))/(d.range*d.range),0,1);
+          const t=clamp(((m.x-this.x)*(ex-this.x)+(m.y-this.y)*(ey-this.y))/(RG*RG),0,1);
           const px=this.x+(ex-this.x)*t, py=this.y+(ey-this.y)*t;
           if(dist2(m.x,m.y,px,py)<d.pw*d.pw){ m.damage(v,{crit});
             S.fx.push({t:'arc',x:m.x,y:m.y,rot:ang+rnd(-.4,.4),sc:1,color:'#eaffef',life:.16,max:.16}); }
@@ -743,8 +792,8 @@ class Unit{
         const {v}=roll();
         inR.forEach(m=>{ m.damage(single?v*4:v,{});
           S.fx.push({t:'spark',x:m.x,y:m.y+m.size*.3,life:.18,max:.18,color:'#ffe9ad'}); });
-        S.fx.push({t:'shock',x:this.x,y:this.y,r:d.range,life:.5,max:.5,color:'#ffe9ad'});
-        S.fx.push({t:'crack',x:this.x,y:this.y,angs:Array.from({length:9},()=>rnd(0,TAU)),r:d.range*.85,life:.42,max:.42});
+        S.fx.push({t:'shock',x:this.x,y:this.y,r:this.rng(),life:.5,max:.5,color:'#ffe9ad'});
+        S.fx.push({t:'crack',x:this.x,y:this.y,angs:Array.from({length:9},()=>rnd(0,TAU)),r:this.rng()*.85,life:.42,max:.42});
         S.fx.push({t:'flash',x:this.x,y:this.y,r:60,life:.12,max:.12,color:'#fff3c0'});
         addShake(8);
         break;
@@ -903,8 +952,11 @@ function consumeVictims(mode){
    시스템 — 소환/합성/승급/판매/강화/상점
    ========================================================================= */
 function rollGrade(){
+  let luck=0.03*metaLv('luck')+((S.relicFlags&&S.relicFlags.eliteSummon)?0.14:0);
+  const p=GRADES.map(g=>g.prob);
+  if(luck>0){ const mv=Math.min(p[0],luck); p[0]-=mv; p[2]+=mv*0.55; p[1]+=mv*0.45; }
   const x=Math.random(); let acc=0;
-  for(let i=0;i<GRADES.length;i++){ acc+=GRADES[i].prob; if(x<acc) return i; }
+  for(let i=0;i<p.length;i++){ acc+=p[i]; if(x<acc) return i; }
   return 0;
 }
 function spawnUnit(grade,pos){
@@ -919,15 +971,15 @@ function spawnUnit(grade,pos){
 function summon(forceGrade){
   if(S.phase!=='play') return;
   const isGem=forceGrade!==undefined;
-  if(!isGem&&S.gold<ECON.summon){ toast('골드가 부족합니다!'); AudioSys.error(); return; }
-  if(S.units.length>=UNIT_CAP){ toast('용병단이 가득 찼습니다! 합류/승급으로 자리를 만드세요'); AudioSys.error(); return; }
+  const sCost=Math.round(ECON.summon*MODS.summon); if(!isGem&&S.gold<sCost){ toast('골드가 부족합니다!'); AudioSys.error(); return; }
+  if(S.units.length>=unitCap()){ toast('용병단이 가득 찼습니다! 합류/승급으로 자리를 만드세요'); AudioSys.error(); return; }
   let grade;
   if(isGem){
     const cost=forceGrade===4?ECON.mythCost:ECON.legCost;
     if(S.gems<cost){ toast('마나가 부족합니다!'); AudioSys.error(); return; }
     S.gems-=cost; grade=forceGrade;
   }else{
-    S.gold-=ECON.summon; S.summons++; grade=rollGrade();
+    S.gold-=sCost; S.summons++; grade=rollGrade();
   }
   const u=spawnUnit(grade,findSpawnSpot());
   AudioSys.summon(grade);
@@ -1028,11 +1080,12 @@ function stepRound(dt){
   const anyAlive=S.mobs.some(m=>m.alive&&m.round===S.round);
   if(!S.spawnQ.length&&S.roundSpawned>0&&!anyAlive&&!S.bonusGiven){
     S.bonusGiven=true;
-    const bonus=clearBonus(S.round);
-    S.gold+=bonus;
+    const bonus=Math.round(clearBonus(S.round)*MODS.gold);
+    S.gold+=bonus; if(S.relicFlags.manaWave) S.gems+=1;
     log(`✅ WAVE ${S.round} 격퇴! 보너스 <b>+${bonus}</b>`);
     AudioSys.coin();
     if(S.roundT<S.roundDur-4) S.roundT=S.roundDur-4;
+    if(bossFor(S.round)){ offerRelics(); }
   }
   // 다음 라운드
   if(S.roundT>=S.roundDur&&S.round<60){
@@ -1443,9 +1496,9 @@ function render(){
   if(S.sel){
     const u=S.sel;
     ctx.fillStyle='rgba(124,232,255,.09)';
-    ctx.beginPath(); ctx.arc(u.x,u.y,u.def.range,0,TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(u.x,u.y,u.rng(),0,TAU); ctx.fill();
     ctx.strokeStyle='rgba(124,232,255,.5)'; ctx.lineWidth=2; ctx.setLineDash([6,6]);
-    ctx.beginPath(); ctx.arc(u.x,u.y,u.def.range,0,TAU); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(u.x,u.y,u.rng(),0,TAU); ctx.stroke(); ctx.setLineDash([]);
   }
   if(S.selGroup.length){
     const pu=.6+.4*Math.sin(S.time*6);
@@ -1854,7 +1907,7 @@ function refreshCard(){
   UI.ucGrade.style.color=GRADES[u.grade].color;
   UI.ucStars.textContent='★'.repeat(u.star)+'☆'.repeat(3-u.star);
   UI.ucStat.innerHTML=
-    `공격력 <b>${fmt(u.dmg())}</b> · 공속 <b>${u.aspd().toFixed(2)}/s</b> · 사거리 <b>${u.def.range}</b><br>`+
+    `공격력 <b>${fmt(u.dmg())}</b> · 공속 <b>${u.aspd().toFixed(2)}/s</b> · 사거리 <b>${Math.round(u.rng())}</b><br>`+
     `DPS <b>${fmt(u.dps())}</b><br><span style="color:#a8d868">${u.def.desc}</span>`;
 }
 function updateUI(){
@@ -1870,10 +1923,10 @@ function updateUI(){
   UI.gold.textContent=Math.floor(S.gold);
   UI.gem.textContent=S.gems;
   UI.dps.textContent=fmt(S.units.reduce((a,u)=>a+u.dps(),0));
-  UI.unitCount.textContent=`${S.units.length} / ${UNIT_CAP}`;
-  const empt=UNIT_CAP-S.units.length;
-  UI.summonCost.textContent=`${ECON.summon} G · 자리 ${empt}`;
-  UI.summon.disabled=S.gold<ECON.summon||!empt||S.phase!=='play';
+  UI.unitCount.textContent=`${S.units.length} / ${unitCap()}`;
+  const empt=unitCap()-S.units.length;
+  UI.summonCost.textContent=`${Math.round(ECON.summon*MODS.summon)} G · 자리 ${empt}`;
+  UI.summon.disabled=S.gold<Math.round(ECON.summon*MODS.summon)||!empt||S.phase!=='play';
   const upCost=Math.floor(ECON.upgBase*Math.pow(ECON.upgGrow,S.upgLv));
   UI.upgTxt.textContent=S.upgLv>=ECON.upgMax?`Lv.${S.upgLv} MAX`:`Lv.${S.upgLv} · ${upCost} G`;
   UI.upg.disabled=S.gold<upCost||S.upgLv>=ECON.upgMax||S.phase!=='play';
@@ -2002,8 +2055,9 @@ $('sndBtn').onclick=()=>{ const on=AudioSys.toggle(); $('sndBtn').textContent=on
    시작/종료/리셋
    ========================================================================= */
 function resetState(){
-  S.gold=100; S.gems=0; S.round=0; S.upgLv=0; S.aspdLv=0;
-  S.mobLimit=S.diff.limit;
+  S.relics=[]; S.relicFlags={}; recalcMods();
+  S.gold=100+40*metaLv('gold'); S.gems=2*metaLv('mana'); S.round=0; S.upgLv=metaLv('upg'); S.aspdLv=0;
+  S.mobLimit=S.diff.limit+MODS.limit; S.rerollLeft=metaLv('reroll');
   S.units.length=0; S.mobs.length=0; S.prj.length=0; S.fx.length=0; S.texts.length=0;
   S.roundT=0; S.spawnQ=[]; S.boss=null; S.finalT=0; S.kills=0; S.summons=0; S.time=0;
   S.speed=1; S.paused=false; S.sel=null; S.selGroup=[]; S.roundSpawned=0;
@@ -2011,8 +2065,9 @@ function resetState(){
   $('pauseBtn').textContent='⏸';
   const chip=$('diffChip');
   chip.textContent=S.diff.name; chip.style.color=S.diff.color; chip.style.border=`1px solid ${S.diff.color}55`;
-  UI.log.innerHTML='';
-  refreshCard();
+  renderHudRelics();
+  if(metaLv('hero')){ const hp=findSpawnSpot(); S.units.push(new Unit(pick(CHARS_BY_GRADE[1]).id,1,hp.x,hp.y)); }
+  UI.log.innerHTML=''; refreshCard();
 }
 $('startBtn').onclick=()=>{
   AudioSys.init();
@@ -2028,7 +2083,7 @@ $('retryBtn').onclick=()=>{
   resetState();
   startRound(1);
 };
-$('menuBtn').onclick=()=>{
+$('menuBtn').onclick=()=>{ refreshStartRunes();
   $('endScreen').style.display='none';
   $('startScreen').style.display='flex';
   S.phase='start';
@@ -2044,6 +2099,8 @@ DIFFS.forEach((d,i)=>{
   $('diffPick').appendChild(b);
 });
 function showEnd(win,reason){
+  const earned=Math.round(S.round*3 + S.kills*0.4 + (win?150:0));
+  META.runes=(META.runes||0)+earned; saveMeta(); S.lastRunes=earned;
   const t=$('endTitle');
   t.textContent=win?`🏆 ${S.diff.name} 클리어!`:'☠️ 방어선 붕괴...';
   t.classList.toggle('lose',!win);
@@ -2052,6 +2109,7 @@ function showEnd(win,reason){
   const all=JSON.parse(localStorage.getItem('opdef_best2')||'{}');
   const best=all[S.diff.key]||{round:0,win:false};
   $('endStats').innerHTML=
+    `<span style="color:#c8b6ff;font-weight:800">🔷 룬 +${S.lastRunes||0}</span> 획득 (총 보유 ${META.runes})<br>`+
     `<span style="color:${S.diff.color};font-weight:800">${S.diff.name}</span> 난이도 · 도달 웨이브 <b>${S.round}</b> / 60<br>`+
     `토벌 <b>${S.kills}</b> · 소집 <b>${S.summons}</b>회 · 강화 <b>Lv.${S.upgLv}</b><br>`+
     `플레이 타임 <b>${mm}:${String(ss).padStart(2,'0')}</b><br>`+
@@ -2341,6 +2399,112 @@ $('gfxBtn').onclick=()=>{ const on=GPUFX.toggle(); AudioSys.ui();
   toast(GPUFX.ok?(on?'✨ WebGPU 시네마틱 ON':'WebGPU 시네마틱 OFF'):'이 브라우저는 WebGPU 미지원 — 기본 렌더 사용'); };
 GPUFX.init().then(r=>{ if(r){ log('✨ <b>WebGPU 시네마틱 렌더</b> 활성화 (블룸·그레인·재/불씨 파티클)'); }
   else { $('gfxBtn').style.opacity=.45; } });
+
+
+/* =========================================================================
+   로그라이트 코어 — 룬 메타 progression + 런 렐릭
+   ========================================================================= */
+const META_DEF=[
+ {id:'gold', icon:'💰', name:'전쟁 자금', desc:'시작 골드 +40', max:5, cost:l=>40+l*35},
+ {id:'mana', icon:'💎', name:'마나 저장고', desc:'시작 마나 +2', max:5, cost:l=>60+l*45},
+ {id:'atk',  icon:'⚔️', name:'무기 연마', desc:'전체 공격력 +4%', max:10, cost:l=>50+l*40},
+ {id:'aspd', icon:'⚡', name:'속공 훈련', desc:'전체 공속 +3%', max:8, cost:l=>50+l*40},
+ {id:'upg',  icon:'🛡️', name:'상비군', desc:'시작 공격강화 Lv +1', max:5, cost:l=>90+l*70},
+ {id:'cap',  icon:'🪖', name:'대규모 징집', desc:'용병 자리 +1', max:5, cost:l=>110+l*80},
+ {id:'gold2',icon:'🏆', name:'전리품', desc:'획득 골드 +8%', max:6, cost:l=>80+l*55},
+ {id:'limit',icon:'🧱', name:'견고한 성벽', desc:'몬스터 한계 +8', max:4, cost:l=>100+l*70},
+ {id:'luck', icon:'✨', name:'명성', desc:'고급+ 소집 확률↑', max:4, cost:l=>130+l*90},
+ {id:'hero', icon:'👑', name:'선봉대', desc:'시작 시 고급 용병 1명 지급', max:1, cost:l=>350},
+ {id:'reroll',icon:'🎲',name:'점술', desc:'런당 렐릭 리롤 +1', max:2, cost:l=>180+l*140},
+ {id:'relic4',icon:'🔮',name:'풍요', desc:'렐릭 선택지 3→4', max:1, cost:l=>450},
+];
+const RELICS=[
+ {id:'rage',   icon:'💢', name:'광폭의 인장', desc:'전체 공격력 +25%',        apply:m=>m.atk*=1.25},
+ {id:'haste',  icon:'💨', name:'신속의 부적', desc:'전체 공속 +18%',          apply:m=>m.aspd*=1.18},
+ {id:'scope',  icon:'🎯', name:'매의 눈',     desc:'사거리 +15%',            apply:m=>m.range*=1.15},
+ {id:'greed',  icon:'🪙', name:'탐욕의 손',   desc:'획득 골드 +40%',          apply:m=>m.gold*=1.4},
+ {id:'crit',   icon:'🩸', name:'급소 간파',   desc:'치명타 확률 +12%',        apply:m=>m.crit+=0.12},
+ {id:'legion', icon:'⚑', name:'증원령',      desc:'용병 자리 +3',            apply:m=>m.cap+=3},
+ {id:'thrift', icon:'🧾', name:'절약령',      desc:'소집 비용 -30%',          apply:m=>m.summon*=0.7},
+ {id:'berserk',icon:'🔥', name:'광전사의 피', desc:'공속 +40% · 사거리 -12%', apply:m=>{m.aspd*=1.4;m.range*=0.88;}},
+ {id:'wall',   icon:'🏰', name:'강철 성벽',   desc:'몬스터 한계 +15',         apply:m=>m.limit+=15},
+ {id:'power',  icon:'⚔️', name:'대공세',      desc:'공격력 +12% · 사거리 +10%',apply:m=>{m.atk*=1.12;m.range*=1.10;}},
+ {id:'star',   icon:'🌟', name:'합류의 비법', desc:'합류 성급 배율 +20%',      apply:m=>m.star*=1.2},
+ {id:'fortune',icon:'💰', name:'행운의 금화', desc:'즉시 골드 +180',          once:()=>{S.gold+=180;}},
+ {id:'trove',  icon:'💎', name:'마나 봉헌',   desc:'즉시 마나 +5',            once:()=>{S.gems+=5;}},
+ {id:'mana',   icon:'🔷', name:'마나 결정',   desc:'웨이브 클리어마다 마나 +1', flag:'manaWave'},
+ {id:'elite',  icon:'📜', name:'정예 징집령', desc:'소집 시 고급+ 확률 대폭↑',  flag:'eliteSummon'},
+ {id:'execB',  icon:'💥', name:'처형 명령',   desc:'처치 시 20% 확률 주변 폭발', flag:'execBoom'},
+];
+const RELIC_BY={}; RELICS.forEach(r=>RELIC_BY[r.id]=r);
+function loadMeta(){ try{ const m=JSON.parse(localStorage.getItem('runeguard_meta')); return m&&m.up?m:{runes:0,up:{}}; }catch(_){ return {runes:0,up:{}}; } }
+const META=loadMeta();
+function saveMeta(){ try{ localStorage.setItem('runeguard_meta',JSON.stringify(META)); }catch(_){}}
+function metaLv(id){ return (META.up&&META.up[id])||0; }
+let MODS={atk:1,aspd:1,range:1,crit:0,gold:1,summon:1,cap:0,limit:0,star:1};
+function recalcMods(){
+  const m={atk:1,aspd:1,range:1,crit:0,gold:1,summon:1,cap:0,limit:0,star:1};
+  m.atk*=1+0.04*metaLv('atk'); m.aspd*=1+0.03*metaLv('aspd');
+  m.gold*=1+0.08*metaLv('gold2'); m.cap+=metaLv('cap'); m.limit+=8*metaLv('limit');
+  (S.relics||[]).forEach(r=>{ if(r.apply) r.apply(m); });
+  MODS=m;
+}
+function unitCap(){ return UNIT_CAP+MODS.cap; }
+function execBoom(x,y){
+  explode(x,y,52,'#ff9a5a',{debris:8}); addShake(2);
+  S.mobs.forEach(mm=>{ if(mm.alive&&dist2(mm.x,mm.y,x,y)<52*52) mm.damage(60+S.round*8,{silent:false}); });
+}
+/* 런 중 공격 연쇄(chainHit)는 생략 — 처형 폭발로 이벤트 대표 */
+
+/* ---- 렐릭 제안 오버레이 ---- */
+function offerRelics(){
+  const owned=new Set(S.relics.map(r=>r.id));
+  const pool=RELICS.filter(r=>{ if(r.once) return true; if(r.flag) return !S.relicFlags[r.flag]; return true; });
+  drawRelicChoices(pool, owned);
+  S.paused=true; $('relicScreen').style.display='flex';
+  $('rerollN').textContent=S.rerollLeft>0?`(${S.rerollLeft})`:'';
+  $('relicReroll').style.display=S.rerollLeft>0?'inline-block':'none';
+}
+function drawRelicChoices(pool, owned){
+  const n=3+metaLv('relic4');
+  const shuf=pool.slice(); for(let i=shuf.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [shuf[i],shuf[j]]=[shuf[j],shuf[i]]; }
+  const pick3=shuf.slice(0,n);
+  const box=$('relicCards'); box.innerHTML='';
+  pick3.forEach(r=>{ const d=document.createElement('div'); d.className='reliccard';
+    d.innerHTML=`<div class="ri">${r.icon}</div><div class="rn">${r.name}</div><div class="rd">${r.desc}</div>`;
+    d.onclick=()=>takeRelic(r); box.appendChild(d); });
+}
+function takeRelic(r){
+  AudioSys.gradeup();
+  if(r.once) r.once();
+  if(r.flag) S.relicFlags[r.flag]=true;
+  S.relics.push(r); recalcMods(); renderHudRelics();
+  $('relicScreen').style.display='none'; S.paused=false;
+  log(`🔮 유물 획득 — <b style="color:#c8b6ff">${r.name}</b>`);
+}
+$('relicReroll').onclick=()=>{ if(S.rerollLeft<=0) return; S.rerollLeft--; AudioSys.ui();
+  drawRelicChoices(RELICS.filter(r=>r.flag?!S.relicFlags[r.flag]:true), new Set(S.relics.map(r=>r.id)));
+  $('rerollN').textContent=S.rerollLeft>0?`(${S.rerollLeft})`:''; if(S.rerollLeft<=0) $('relicReroll').style.display='none'; };
+function renderHudRelics(){ const h=$('hudRelics'); if(!h) return;
+  h.innerHTML=(S.relics||[]).map(r=>`<span title="${r.name}: ${r.desc}">${r.icon}</span>`).join(''); }
+
+/* ---- 룬 제단 (메타) 화면 ---- */
+function openMeta(){ renderMeta(); $('startScreen').style.display='none'; $('metaScreen').style.display='flex'; }
+function renderMeta(){
+  $('runeHave').innerHTML=`보유 룬 <b>${META.runes||0}</b>`;
+  const g=$('metaGrid'); g.innerHTML='';
+  META_DEF.forEach(d=>{ const lv=metaLv(d.id), maxed=lv>=d.max, cost=d.cost(lv);
+    const can=!maxed && (META.runes||0)>=cost;
+    const cell=document.createElement('div'); cell.className='metacell'+(maxed?' maxed':'');
+    cell.innerHTML=`<div class="lv">${lv}/${d.max}</div><div class="mi">${d.icon}</div><div class="mn">${d.name}</div>`+
+      `<div class="md">${d.desc}</div><div class="mc ${maxed?'max':can?'ok':'no'}">${maxed?'MAX':'🔷 '+cost}</div>`;
+    if(!maxed) cell.onclick=()=>{ if((META.runes||0)>=cost){ META.runes-=cost; META.up[d.id]=lv+1; saveMeta(); AudioSys.merge(); renderMeta(); } else { toast('룬이 부족합니다'); AudioSys.error(); } };
+    g.appendChild(cell); });
+}
+$('metaBtn').onclick=()=>{ AudioSys.ui&&AudioSys.ui(); openMeta(); };
+$('metaBack').onclick=()=>{ $('metaScreen').style.display='none'; $('startScreen').style.display='flex'; refreshStartRunes(); };
+function refreshStartRunes(){ const e=$('startRunes'); if(e) e.textContent=META.runes||0; }
+recalcMods(); refreshStartRunes();
 
 /* 부트 — 아틀라스 픽셀 디코딩 완료 후 스프라이트 빌드 (data URI는 complete=true여도 래스터화 미완 가능) */
 function boot(){ if(window.__booted) return; window.__booted=true;
