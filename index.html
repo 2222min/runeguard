@@ -656,7 +656,7 @@ class Mob{
     addText(this.x,this.y-10,'+'+gg,'#ffd54f',12); if(S.relicFlags&&S.relicFlags.execBoom&&Math.random()<.2) execBoom(this.x,this.y);
     if(this.gem){ S.gems+=this.gem; addText(this.x,this.y-26,'+'+this.gem+' 💎','#7ce8ff',13); AudioSys.gas(); log(`💎 <b>${this.boss.name}</b> 토벌! 마나 +${this.gem}`); }
     puff(this.x,this.y,this.boss?26:10,this.boss?'#ffb74d':'#9fb8d8');
-    if(this.boss){ explode(this.x,this.y,70,'#ffb74d',{debris:22}); addShake(10); S.hitStop=.13; }
+    if(this.boss){ explode(this.x,this.y,70,'#ffb74d',{debris:22}); addShake(5); S.hitStop=.1; }
     else S.fx.push({t:'flash',x:this.x,y:this.y,r:16,life:.12,max:.12,color:'#ffe9ad'});
     AudioSys.kill();
     if(this.boss){ const wasFinal=this.boss.final; S.boss=null; if(wasFinal) winGame(); else S.relicPending=true; }
@@ -980,7 +980,7 @@ function glowSpr(hex){
   g.fillStyle=gr; g.fillRect(0,0,64,64);
   GLOW[hex]=c; return c;
 }
-function addShake(n){ S.shake=Math.min(15,S.shake+n); }
+function addShake(n){ S.shake=Math.min(9,S.shake+n*.7); }
 function explode(x,y,r,color,opt){
   opt=opt||{};
   S.fx.push({t:'flash',x,y,r:r*.9,life:.09,max:.09,color:'#ffffff'});
@@ -1556,7 +1556,7 @@ function drawLights(nightW){
 function render(){
   ctx.clearRect(0,0,FW,FH);
   ctx.save();
-  if(S.shake>0.15) ctx.translate(rnd(-1,1)*S.shake, rnd(-1,1)*S.shake);
+  if(S.shake>0.15){ const sh=Math.min(S.shake,7); ctx.translate(rnd(-1,1)*sh, rnd(-1,1)*sh); }
   if(window.OceanGL&&OceanGL.ok){
     OceanGL.render(S.time,dayPhase());
     ctx.drawImage(OceanGL.canvas,0,0,FW,FH);
@@ -2111,6 +2111,12 @@ cv.addEventListener('pointerup',e=>{
   }
 });
 cv.addEventListener('pointercancel',()=>{ drag=null; box=null; });
+/* 더블클릭 = Ctrl+클릭처럼 같은 종류(같은 캐릭터) 전체 선택 */
+cv.addEventListener('dblclick',e=>{ if(S.phase!=='play') return;
+  const {x,y}=canvasPos(e); const u=unitHit(x,y); if(!u) return;
+  drag=null; box=null;
+  S.selGroup=S.units.filter(k=>k.charId===u.charId); S.sel=u; refreshCard(); AudioSys.ui();
+});
 UI.summon.onclick=()=>summon();
 UI.upg.onclick=buyUpg;
 UI.aspd.onclick=buyAspd;
@@ -2246,6 +2252,7 @@ function step(dt){
 let last=performance.now();
 function frame(now){
   const dt=Math.min(.05,(now-last)/1000); last=now;
+  S.shake*=Math.max(0,1-12*dt); if(S.shake<.12) S.shake=0;
   if(S.relicPending&&!S.relicOpen&&S.phase==='play'){ S.relicPending=false; offerRelics(); }
   if(S.hitStop>0){ S.hitStop-=dt; } // 히트스톱: 보스 처치 순간 시간 정지
   else if(S.phase==='play'&&!S.paused){
@@ -2564,7 +2571,7 @@ function offerRelics(){
   const owned=new Set(S.relics.map(r=>r.id));
   const pool=RELICS.filter(r=>{ if(r.once) return true; if(r.flag) return !S.relicFlags[r.flag]; return true; });
   drawRelicChoices(pool, owned);
-  S.paused=true; S.relicOpen=true; $('relicScreen').style.display='flex';
+  S.paused=true; S.relicOpen=true; S.shake=0; S.hitStop=0; $('relicScreen').style.display='flex';
   $('rerollN').textContent=S.rerollLeft>0?`(${S.rerollLeft})`:'';
   $('relicReroll').style.display=S.rerollLeft>0?'inline-block':'none';
 }
