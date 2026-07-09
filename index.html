@@ -455,6 +455,11 @@ const CHARS=[
 {id:'swordsaint',name:'검성',    grade:4,cls:'전사',tile:97,tint:'#ffe066',tintA:.48,dmg:520,aspd:.75,range:185,type:'slash',crit:{p:.35,m:3},splash:42,exec:{p:.12}, desc:'즉사 확률 · 크리티컬 광역 참격'},
 {id:'valkyrie', name:'발키리',   grade:4,cls:'성기사',tile:99,tint:'#a0e0ff',tintA:.42,dmg:210,aspd:1.9,range:195,type:'slash',crit:{p:.4,m:3},splash:40,buff:.1, desc:'여신의 크리티컬 난무 + 아군 버프'},
 {id:'shadowlord',name:'그림자군주',grade:4,cls:'도적',tile:88,tint:'#40206a',tintA:.55,dmg:180,aspd:2.0,range:180,type:'exec',bonusPct:.08,exec:{p:.15}, desc:'즉사 확률 · HP 비례 처형'},
+/* 제어·대보스 특화 */
+{id:'frostmage',name:'서리술사',grade:2,cls:'마법사',tile:84,tint:'#7ce8ff',tintA:.5,dmg:26,aspd:1.0,range:200,type:'lightning',chain:3,slow:{f:.42,t:2.4}, desc:'강력한 빙결 둔화(-58%) 3연쇄'},
+{id:'maceman', name:'철퇴병',  grade:1,cls:'전사',tile:96,tint:'#8a6a3a',tintA:.45,dmg:20,aspd:.7,range:155,type:'cannon',splash:40,knock:55, desc:'강타로 적을 뒤로 넉백'},
+{id:'templar', name:'성전기사',grade:3,cls:'성기사',tile:100,tint:'#ffe0a0',tintA:.45,dmg:100,aspd:.95,range:165,type:'slash',splash:48,stun:{p:.28,t:1},buff:.1, desc:'광역 참격 + 기절 + 아군 버프'},
+{id:'dragoon', name:'용살자',  grade:3,cls:'궁수',tile:97,tint:'#c03028',tintA:.45,dmg:120,aspd:.9,range:240,type:'shoot',bossDmg:.6, desc:'대보스 특화 저격 — 보스 피해 +60%'},
 ];
 const CHARS_BY_GRADE=[[],[],[],[],[]];
 CHARS.forEach(c=>CHARS_BY_GRADE[c.grade].push(c));
@@ -638,9 +643,11 @@ class Mob{
     // 목덜미 판정 — 명중 시 풀피해, 빗나가면 40%
     const napeHit = o.nape!==undefined ? o.nape : (Math.random()<(o.napeChance!=null?o.napeChance:1));
     let v = napeHit ? amt : amt*.4;
+    const bmul = this.boss ? (1+(MODS.bossDmg||0)+(o.bossDmg||0)) : 1;
+    v *= bmul;
     let txt = fmt(v);
     if(o.execKill && napeHit){
-      if(this.boss){ v=amt*3; txt=fmt(v)+'!'; }      // 보스는 즉살 면역 — 3배 치명타
+      if(this.boss){ v=amt*3*bmul; txt=fmt(v)+'!'; }  // 보스는 즉살 면역 — 3배 치명타(보스특화 배율)
       else { v=this.hp; txt='즉살!'; }
     }
     this.hp-=v; this.hitFlash=.12;
@@ -812,7 +819,7 @@ class Unit{
   attack(inR){
     const d=this.def, base=this.dmg();
     const roll=()=>{ const cp=(d.crit?d.crit.p:0)+MODS.crit, cm=d.crit?d.crit.m:2.2; if(cp>0&&Math.random()<cp) return {v:base*cm,crit:true}; return {v:base,crit:false}; };
-    const napeOpt=extra=>Object.assign({napeChance:d.nape!=null?d.nape:1, execKill:d.exec&&Math.random()<d.exec.p},extra||{});
+    const napeOpt=extra=>Object.assign({napeChance:d.nape!=null?d.nape:1, execKill:d.exec&&Math.random()<d.exec.p, bossDmg:d.bossDmg||0},extra||{});
     const nTargets=d.targets||1;
     switch(d.type){
       case 'lightning':{
@@ -860,8 +867,10 @@ class Unit{
       case 'quake':{
         AudioSys.cannon();
         const single=inR.length===1;
-        const {v}=roll();
-        inR.forEach(m=>{ m.damage(single?v*4:v,{});
+        const {v,crit}=roll();
+        inR.forEach(m=>{ m.damage(single?v*4:v,napeOpt({crit}));
+          if(d.stun&&m.alive&&Math.random()<d.stun.p) m.stunT=d.stun.t;
+          if(d.slow&&m.alive){ m.slowT=d.slow.t; m.slowF=d.slow.f; }
           S.fx.push({t:'spark',x:m.x,y:m.y+m.size*.3,life:.18,max:.18,color:'#ffe9ad'}); });
         S.fx.push({t:'shock',x:this.x,y:this.y,r:this.rng(),life:.5,max:.5,color:'#ffe9ad'});
         S.fx.push({t:'crack',x:this.x,y:this.y,angs:Array.from({length:9},()=>rnd(0,TAU)),r:this.rng()*.85,life:.42,max:.42});
@@ -915,7 +924,7 @@ class Prj{
     this.dead=true;
     const d=this.def, hx=this.tx, hy=this.ty;
     const primaryAlive=this.target&&this.target.alive;
-    const napeOpt=extra=>Object.assign({napeChance:d.nape!=null?d.nape:1, execKill:d.exec&&Math.random()<d.exec.p},extra||{});
+    const napeOpt=extra=>Object.assign({napeChance:d.nape!=null?d.nape:1, execKill:d.exec&&Math.random()<d.exec.p, bossDmg:d.bossDmg||0},extra||{});
     if(primaryAlive){
       let v=this.v;
       if(d.type==='exec'){ v+=Math.min(this.target.hp*d.bonusPct, this.v*6); }
@@ -923,6 +932,10 @@ class Prj{
       if(d.burn&&this.target.alive){ this.target.burnT=d.burn.t; this.target.burnDps=this.v*d.burn.dps; }
       if(d.stun&&this.target.alive&&Math.random()<d.stun.p){ this.target.stunT=d.stun.t; }
       if(d.slow&&this.target.alive){ this.target.slowT=d.slow.t; this.target.slowF=d.slow.f; }
+      if(d.knock&&this.target.alive&&!this.target.boss){ this.target.d=Math.max(0,this.target.d-d.knock); }
+      else if(d.knock&&this.target.alive&&this.target.boss){ this.target.d=Math.max(0,this.target.d-d.knock*.35); }
+      if(S.relicFlags.stunHit&&this.target.alive&&Math.random()<.12){ this.target.stunT=Math.max(this.target.stunT,.6);
+        S.fx.push({t:'spark',x:this.target.x,y:this.target.y,life:.16,max:.16,color:'#ffe082'}); }
     }
     if(d.splash){
       S.mobs.forEach(m=>{
@@ -2540,6 +2553,8 @@ const RELICS=[
  {id:'wall',   icon:'🏰', name:'강철 성벽',   desc:'몬스터 한계 +15',         apply:m=>m.limit+=15},
  {id:'power',  icon:'⚔️', name:'대공세',      desc:'공격력 +12% · 사거리 +10%',apply:m=>{m.atk*=1.12;m.range*=1.10;}},
  {id:'star',   icon:'🌟', name:'합류의 비법', desc:'합류 성급 배율 +20%',      apply:m=>m.star*=1.2},
+ {id:'slayer', icon:'🐉', name:'용살자의 인장', desc:'보스 피해 +45%',          apply:m=>m.bossDmg=(m.bossDmg||0)+0.45},
+ {id:'stunr',  icon:'⭐', name:'마비의 룬',   desc:'모든 공격 12% 확률 기절',   flag:'stunHit'},
  {id:'fortune',icon:'💰', name:'행운의 금화', desc:'즉시 골드 +180',          once:()=>{S.gold+=180;}},
  {id:'trove',  icon:'💎', name:'마나 봉헌',   desc:'즉시 마나 +5',            once:()=>{S.gems+=5;}},
  {id:'mana',   icon:'🔷', name:'마나 결정',   desc:'웨이브 클리어마다 마나 +1', flag:'manaWave'},
@@ -2551,9 +2566,9 @@ function loadMeta(){ try{ const m=JSON.parse(localStorage.getItem('runeguard_met
 const META=loadMeta();
 function saveMeta(){ try{ localStorage.setItem('runeguard_meta',JSON.stringify(META)); }catch(_){}}
 function metaLv(id){ return (META.up&&META.up[id])||0; }
-let MODS={atk:1,aspd:1,range:1,crit:0,gold:1,summon:1,cap:0,limit:0,star:1};
+let MODS={atk:1,aspd:1,range:1,crit:0,gold:1,summon:1,cap:0,limit:0,star:1,bossDmg:0};
 function recalcMods(){
-  const m={atk:1,aspd:1,range:1,crit:0,gold:1,summon:1,cap:0,limit:0,star:1};
+  const m={atk:1,aspd:1,range:1,crit:0,gold:1,summon:1,cap:0,limit:0,star:1,bossDmg:0};
   m.atk*=1+0.04*metaLv('atk'); m.aspd*=1+0.03*metaLv('aspd');
   m.gold*=1+0.08*metaLv('gold2'); m.cap+=metaLv('cap'); m.limit+=8*metaLv('limit');
   (S.relics||[]).forEach(r=>{ if(r.apply) r.apply(m); });
