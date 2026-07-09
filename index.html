@@ -285,6 +285,7 @@
         <div id="nextTxt" style="font-size:11px;color:var(--dim);font-weight:700;width:34px;text-align:right">25s</div>
       </div>
       <div id="mobGaugeWrap"><div id="mobGauge"></div><div id="mobGaugeTxt">몬스터 0 / 80</div></div>
+      <div id="waveType" style="font-size:11px;color:#d8c4a0;font-weight:800;letter-spacing:.5px;text-align:center;margin-top:5px;min-height:14px"></div>
       <div class="resline">
         <div class="res"><small>골드</small><span id="goldV">100</span></div>
         <div class="res"><small>마나</small><span id="gemV">0</span></div>
@@ -589,6 +590,10 @@ const MOB_TIERS=[
  {name:'거미',   tile:122},
  {name:'해골',   tile:121},
  {name:'게',     tile:110},
+ {name:'박쥐',   tile:120},
+ {name:'골렘',   tile:109},
+ {name:'독사',   tile:123},
+ {name:'서리뱀', tile:124},
 ];
 
 /* ---- 스프라이트 캐시 ---- */
@@ -672,16 +677,20 @@ const aspdMult=()=>1+ECON.aspdPct*S.aspdLv;
    엔티티
    ========================================================================= */
 class Mob{
-  constructor(round,bossDef){
+  constructor(round,bossDef,spec){
     this.id=S.uid++;
     this.round=round; this.boss=bossDef||null;
-    const hp=mobHP(round)*S.diff.hp*(curMap.mod.hp||1)*(1+0.15*(S.asc||0))*(bossDef?bossDef.hpMul*S.diff.bossHp:1);
+    const A=bossDef?null:(ARCH[(spec&&spec.arch)||'normal']||ARCH.normal);
+    this.arch=bossDef?null:((spec&&spec.arch)||'normal');
+    this.archTag=A?A.tag:''; this.dr=A?(A.dr||0):0;
+    const hp=mobHP(round)*S.diff.hp*(curMap.mod.hp||1)*(1+0.15*(S.asc||0))*(bossDef?bossDef.hpMul*S.diff.bossHp:A.hp);
     this.hp=this.maxhp=hp;
     this.d=-ri(0,10); // 스폰 간격 흔들기
-    this.speed=(bossDef?bossDef.speed:60+Math.min(20,round*.5))*S.diff.spd*(curMap.mod.spd||1);
-    this.size=bossDef?bossDef.size:40+Math.min(10,round*.25);
-    this.tier=Math.min(3,Math.floor((round-1)/15));
-    this.spr=bossDef?SPR['boss_'+bossDef.round]:SPR['mob'+this.tier];
+    this.speed=(bossDef?bossDef.speed:(60+Math.min(20,round*.5))*A.spd)*S.diff.spd*(curMap.mod.spd||1);
+    this.size=bossDef?bossDef.size:(40+Math.min(10,round*.25))*A.sz;
+    this.tier=Math.min(MOB_TIERS.length-1,Math.floor((round-1)/15));
+    const _tile=(spec&&spec.tile!=null)?spec.tile:MOB_TIERS[Math.min(3,this.tier)].tile;
+    this.spr=bossDef?SPR['boss_'+bossDef.round]:mobSpr(_tile, A.tint);
     this.gold=(mobGold(round)+S.diff.gold)*(bossDef?10:1);
     this.gem=bossDef?bossDef.gas:0;
     this.slowT=0; this.slowF=1; this.stunT=0; this.burnT=0; this.burnDps=0; this.hitFlash=0;
@@ -715,6 +724,7 @@ class Mob{
     // 목덜미 판정 — 명중 시 풀피해, 빗나가면 40%
     const napeHit = o.nape!==undefined ? o.nape : (Math.random()<(o.napeChance!=null?o.napeChance:1));
     let v = napeHit ? amt : amt*.4;
+    if(this.dr && !o.execKill) v *= (1-this.dr);   // 방패 계열 피해 감쇄 (즉살은 관통)
     const bmul = this.boss ? (1+(MODS.bossDmg||0)+(o.bossDmg||0)) : 1;
     v *= bmul;
     let txt = fmt(v);
@@ -1216,6 +1226,37 @@ function buyAspd(){
    라운드 진행
    ========================================================================= */
 function bossFor(r){ return BOSSES.find(b=>b.round===r); }
+/* =========================================================================
+   몹 아키타입 & 웨이브 테마 — 라운드마다 적 구성이 달라진다
+   ========================================================================= */
+const ARCH={
+  normal:{tag:'',     hp:1,    spd:1,    sz:1,    dr:0,   tint:null},
+  swift: {tag:'질주', hp:.52,  spd:1.8,  sz:.82,  dr:0,   tint:'#8fe9ff'},
+  tank:  {tag:'강골', hp:2.7,  spd:.62,  sz:1.32, dr:0,   tint:'#ff9a6a'},
+  swarm: {tag:'무리', hp:.42,  spd:1.2,  sz:.72,  dr:0,   tint:'#a8e878'},
+  armor: {tag:'방패', hp:1.35, spd:.84,  sz:1.06, dr:.42, tint:'#c4d0e4'},
+  brute: {tag:'광포', hp:1.85, spd:1.06, sz:1.18, dr:0,   tint:'#e87aff'},
+};
+const _mobSprCache={};
+function mobSpr(tile,tint){ const k=tile+'|'+(tint||'x');
+  return _mobSprCache[k]||(_mobSprCache[k]=tileSprite(tile,{scale:3.3,tint:tint||undefined,tintA:tint?.5:0})); }
+const CRE={slime:108, crab:110, spider:122, skull:121, bat:120, golem:109, snake:123, frost:124};
+const THEMES=[
+  {minR:1, name:'척후 무리',   cnt:1,    e:[[CRE.slime,'normal',3],[CRE.crab,'normal',2]]},
+  {minR:1, name:'혼성 정찰',   cnt:1,    e:[[CRE.slime,'normal',2],[CRE.bat,'swift',2]]},
+  {minR:3, name:'질주 급습',   cnt:1.1,  e:[[CRE.bat,'swift',3],[CRE.spider,'swift',2]]},
+  {minR:5, name:'대군 돌격',   cnt:1.5,  e:[[CRE.slime,'swarm',3],[CRE.spider,'swarm',2]]},
+  {minR:7, name:'강골 정예',   cnt:.82,  e:[[CRE.golem,'tank',3],[CRE.crab,'normal',2]]},
+  {minR:9, name:'혼돈의 무리', cnt:1.1,  e:[[CRE.spider,'normal',2],[CRE.snake,'swift',2],[CRE.golem,'tank',1]]},
+  {minR:12,name:'방패 전열',   cnt:.95,  e:[[CRE.golem,'armor',3],[CRE.skull,'normal',2]]},
+  {minR:14,name:'서리 독사',   cnt:1.05, e:[[CRE.snake,'brute',2],[CRE.frost,'armor',2]]},
+  {minR:18,name:'광포 창궐',   cnt:1.05, e:[[CRE.skull,'brute',2],[CRE.bat,'swift',2],[CRE.golem,'tank',1]]},
+  {minR:22,name:'심연 혼전',   cnt:1.1,  e:[[CRE.frost,'armor',1],[CRE.snake,'brute',1],[CRE.bat,'swift',2],[CRE.golem,'tank',1],[CRE.spider,'swarm',2]]},
+];
+function themeFor(r){ const pool=THEMES.filter(t=>t.minR<=r); return pool[(r*5+(r>>1))%pool.length]; }
+function rollEntry(th){ const tot=th.e.reduce((a,x)=>a+x[2],0); let k=Math.random()*tot;
+  for(const x of th.e){ k-=x[2]; if(k<=0) return x; } return th.e[0]; }
+
 function startRound(r){
   S.round=r; S.roundT=0; S.cleared=false; S.bonusGiven=false; S.roundSpawned=0;
   S.spawnQ=[];
@@ -1223,15 +1264,21 @@ function startRound(r){
   if(b){
     S.spawnQ.push({at:.8,boss:b}); // 보스 라운드는 잡몹 없이 보스만
     log(`☠️ <b style="color:#ff7043">WAVE ${r} — 「${b.name}」 출현!</b>`);
+    { const wt=document.getElementById('waveType'); if(wt) wt.textContent='☠ 보스 웨이브'; }
     const tlimit = b.final ? S.diff.finalT : Math.round(S.diff.finalT*0.40); // 일반 보스 ~35~44초
     S.finalT=tlimit; S.roundDur=tlimit+3;
     S.fx.push({t:'banner',name:b.name,sub:`제한 ${tlimit}초 — 시간 내 토벌하지 못하면 패배!`,life:2,max:2});
     AudioSys.boss();
     toast(b.final?`⚔️ 마왕 강림! ${tlimit}초 안에 토벌하라!`:`⏱ 보스전! ${tlimit}초 안에 처치하지 못하면 패배`);
   }else{
-    { const cnt=S.diff.cnt+(curMap.mod.cnt||0); for(let i=0;i<cnt;i++) S.spawnQ.push({at:.6+i*10/cnt}); }
+    const th=themeFor(r); S.waveTheme=th;
+    const cnt=Math.max(6,Math.round((S.diff.cnt+(curMap.mod.cnt||0))*(th.cnt||1)));
+    for(let i=0;i<cnt;i++){ const e=rollEntry(th); S.spawnQ.push({at:.6+i*10/cnt, tile:e[0], arch:e[1]}); }
     S.roundDur=26;
-    if(r===1) log(`WAVE 1 — 몬스터가 몰려옵니다!`);
+    if(r===1) log(`WAVE 1 — <b>${th.name}</b>! 몬스터가 몰려옵니다`);
+    else log(`WAVE ${r} — <b>${th.name}</b>`);
+    toast(`WAVE ${r} · ${th.name}`);
+    { const wt=document.getElementById('waveType'); if(wt) wt.textContent=th.name; }
   }
 }
 function stepRound(dt){
@@ -1239,7 +1286,7 @@ function stepRound(dt){
   // 스폰
   while(S.spawnQ.length&&S.spawnQ[0].at<=S.roundT){
     const q=S.spawnQ.shift();
-    const m=new Mob(S.round,q.boss);
+    const m=new Mob(S.round,q.boss,q);
     S.mobs.push(m); S.roundSpawned++;
     if(q.boss) S.boss=m;
   }
@@ -1764,6 +1811,10 @@ function render(){
     if(ahead.x<m.x-.5) ctx.scale(-1,1); // 진행 방향으로 몸 뒤집기
     const br=m.boss?m.size*(1+.035*Math.sin(S.time*3.2)):m.size; // 보스 숨쉬기
     ctx.drawImage(m.spr,-br/2,-br/2-6,br,br);
+    if(m.dr>0){ ctx.strokeStyle='rgba(206,218,236,.9)'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(0,-2,m.size*.48,0,TAU); ctx.stroke();
+      ctx.strokeStyle='rgba(120,140,170,.55)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(0,-2,m.size*.54,0,TAU); ctx.stroke(); }
     if(m.stunT>0){
       for(let i=0;i<3;i++){ const a=S.time*5+i*TAU/3;
         star5(ctx,Math.cos(a)*13,-m.size*.55+Math.sin(a)*4,3.4,'#ffe082','#b8860b'); }
