@@ -180,6 +180,14 @@
           ☠️ 성 주위에 몬스터가 <b>80마리</b> 쌓이면 패배! 60웨이브 「마왕」을 잡으면 승리!
         </div>
         <div id="diffPick"></div>
+        <div style="font-size:11px;color:#a89878;font-weight:800;letter-spacing:1px;margin:2px 0 4px">🗺️ 원정 지역</div>
+        <div id="mapPick" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px"></div>
+        <div id="ascRow" style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px">
+          <span style="font-size:12px;color:#a89878;font-weight:800">☠️ 어센션</span>
+          <button id="ascDown" style="padding:4px 12px;font-size:15px">◀</button>
+          <span id="ascLv" style="font-size:16px;font-weight:900;color:#ff8a6a;min-width:96px;text-align:center">Lv.0</span>
+          <button id="ascUp" style="padding:4px 12px;font-size:15px">▶</button>
+        </div>
         <button class="bigbtn" id="startBtn">출격하기 ⚔️</button>
         <div id="runeBadge">🔷 보유 룬 <b id="startRunes">0</b></div>
         <div><button class="altbtn" id="metaBtn">🔨 룬 제단 (영구 강화)</button></div>
@@ -523,13 +531,13 @@ function buildSprites(){
    필드 지오메트리 — 트랙(몹 경로) + 갑판 그리드(유닛 배치)
    ========================================================================= */
 const FW=820, FH=840;
-const TR={x:100,y:170,w:620,h:530,r:70};       // 트랙 중심선 라운드 사각형
+let TR={x:100,y:170,w:620,h:530,r:70};          // 트랙 중심선 라운드 사각형 (맵마다 재설정)
 const TRACK_W=56;                              // 트랙 폭
 const GRID={cols:6,rows:5,cell:86,x0:152,y0:224};
-const TORCHES=[{x:140,y:216},{x:680,y:216},{x:140,y:668},{x:680,y:668}];
+let TORCHES=[{x:140,y:216},{x:680,y:216},{x:140,y:668},{x:680,y:668}];
 
 /* 경로: 시계방향, 좌상단 직선 시작점부터 */
-const PATH=(()=>{
+function buildPATH(){
   const {x,y,w,h,r}=TR, q=Math.PI/2, arc=q*r;
   const segs=[
     {t:'l',x1:x+r,y1:y,x2:x+w-r,y2:y,len:w-2*r},
@@ -555,7 +563,8 @@ const PATH=(()=>{
     return {x:TR.x+TR.r,y:TR.y};
   }
   return {total,pos,segs};
-})();
+}
+let PATH=buildPATH();
 
 /* =========================================================================
    난이도
@@ -575,7 +584,7 @@ const S={
   units:[], mobs:[], prj:[], fx:[], texts:[],
   roundT:0, roundDur:26, spawnQ:[], cleared:false, bonusGiven:false,
   mobLimit:80, speed:1, paused:false, sel:null, selGroup:[], hoverBtn:null, shake:0, hitStop:0,
-  syn:{atk:{},aspd:{},range:{},team:1,active:[]},
+  syn:{atk:{},aspd:{},range:{},team:1,active:[]}, asc:0,
   boss:null, finalT:0, kills:0, summons:0, time:0, best:0, uid:0,
 };
 const ECON={summon:20, upgBase:40, upgGrow:1.15, upgPct:.15, upgMax:40,
@@ -595,10 +604,10 @@ class Mob{
   constructor(round,bossDef){
     this.id=S.uid++;
     this.round=round; this.boss=bossDef||null;
-    const hp=mobHP(round)*S.diff.hp*(bossDef?bossDef.hpMul*S.diff.bossHp:1);
+    const hp=mobHP(round)*S.diff.hp*(curMap.mod.hp||1)*(1+0.15*(S.asc||0))*(bossDef?bossDef.hpMul*S.diff.bossHp:1);
     this.hp=this.maxhp=hp;
     this.d=-ri(0,10); // 스폰 간격 흔들기
-    this.speed=(bossDef?bossDef.speed:60+Math.min(20,round*.5))*S.diff.spd;
+    this.speed=(bossDef?bossDef.speed:60+Math.min(20,round*.5))*S.diff.spd*(curMap.mod.spd||1);
     this.size=bossDef?bossDef.size:40+Math.min(10,round*.25);
     this.tier=Math.min(3,Math.floor((round-1)/15));
     this.spr=bossDef?SPR['boss_'+bossDef.round]:SPR['mob'+this.tier];
@@ -659,7 +668,7 @@ class Mob{
   die(){
     if(!this.alive) return;
     this.alive=false; S.kills++;
-    const gg=Math.round(this.gold*MODS.gold); S.gold+=gg;
+    const gg=Math.round(this.gold*MODS.gold*(curMap.mod.gold||1)); S.gold+=gg;
     addText(this.x,this.y-10,'+'+gg,'#ffd54f',12); if(S.relicFlags&&S.relicFlags.execBoom&&Math.random()<.2) execBoom(this.x,this.y);
     if(this.gem){ S.gems+=this.gem; addText(this.x,this.y-26,'+'+this.gem+' 💎','#7ce8ff',13); AudioSys.gas(); log(`💎 <b>${this.boss.name}</b> 토벌! 마나 +${this.gem}`); }
     puff(this.x,this.y,this.boss?26:10,this.boss?'#ffb74d':'#9fb8d8');
@@ -671,7 +680,7 @@ class Mob{
 }
 
 /* 유닛 이동 가능 영역 — 트랙 안쪽 섬 (라운드 사각형) */
-const ISLE={x:TR.x+TRACK_W/2+16, y:TR.y+TRACK_W/2+16, w:TR.w-TRACK_W-32, h:TR.h-TRACK_W-32, r:44};
+let ISLE={x:TR.x+TRACK_W/2+16, y:TR.y+TRACK_W/2+16, w:TR.w-TRACK_W-32, h:TR.h-TRACK_W-32, r:44};
 function clampIsland(px,py){
   const {x,y,w,h,r}=ISLE;
   let cx=clamp(px,x,x+w), cy=clamp(py,y,y+h);
@@ -697,7 +706,7 @@ function sdRound(px,py,R){ // 라운드 사각형 경계까지 부호 거리 (�
   return Math.hypot(px-qx,py-qy)-R.r;
 }
 const TRACK_BAND=TRACK_W/2-9;
-const PATH_SAMP=Array.from({length:120},(_,i)=>{ const t=PATH.total*i/120, p=PATH.pos(t); return {t,x:p.x,y:p.y}; });
+let PATH_SAMP=Array.from({length:120},(_,i)=>{ const t=PATH.total*i/120, p=PATH.pos(t); return {t,x:p.x,y:p.y}; });
 function nearestPathPt(px,py){
   let bd=1e18,b=PATH_SAMP[0];
   PATH_SAMP.forEach(s=>{ const d=dist2(px,py,s.x,s.y); if(d<bd){bd=d;b=s;} });
@@ -718,12 +727,29 @@ function clampWalkable(px,py){
   return dist2(a.x,a.y,px,py)<=dist2(b.x,b.y,px,py)?a:b;
 }
 /* 성문 — 상하좌우 중앙의 넓은 통로 (세그먼트, 어느 지점으로든 통과 가능) */
-const GATES=[
-  {x:ISLE.x+ISLE.w/2, y:ISLE.y+2,        ax:'h', half:120}, // 북
-  {x:ISLE.x+ISLE.w-2, y:ISLE.y+ISLE.h/2, ax:'v', half:120}, // 동
-  {x:ISLE.x+ISLE.w/2, y:ISLE.y+ISLE.h-2, ax:'h', half:120}, // 남
-  {x:ISLE.x+2,        y:ISLE.y+ISLE.h/2, ax:'v', half:120}, // 서
+let GATES=[];
+function buildGATES(){ const half=Math.min(120, Math.min(ISLE.w,ISLE.h)*.32);
+  GATES=[ {x:ISLE.x+ISLE.w/2, y:ISLE.y+2, ax:'h', half}, {x:ISLE.x+ISLE.w-2, y:ISLE.y+ISLE.h/2, ax:'v', half},
+          {x:ISLE.x+ISLE.w/2, y:ISLE.y+ISLE.h-2, ax:'h', half}, {x:ISLE.x+2, y:ISLE.y+ISLE.h/2, ax:'v', half} ]; }
+buildGATES();
+/* ---- 맵 다중화 ---- */
+const MAPS=[
+ {key:'castle',name:'성채 평원',   tr:{x:100,y:170,w:620,h:530,r:70}, tint:null,                   mod:{},                 desc:'표준 지형'},
+ {key:'canyon',name:'좁은 협곡',   tr:{x:158,y:150,w:504,h:560,r:58}, tint:'rgba(220,90,30,.18)',  mod:{spd:1.12,gold:1.18},desc:'좁고 빠름 · 골드 +18%'},
+ {key:'plain', name:'광활한 대지', tr:{x:66,y:150,w:688,h:560,r:82},  tint:'rgba(70,150,230,.16)', mod:{cnt:5},            desc:'넓은 방어선 · 몬스터 +5'},
+ {key:'crypt', name:'저주받은 묘지',tr:{x:112,y:182,w:596,h:506,r:66}, tint:'rgba(150,70,210,.22)', mod:{hp:1.15,mana:true},desc:'몬스터 HP↑ · 웨이브마다 마나'},
 ];
+let curMap=MAPS[0];
+function applyMap(m){
+  curMap=m;
+  TR={...m.tr};
+  ISLE={x:TR.x+TRACK_W/2+16, y:TR.y+TRACK_W/2+16, w:TR.w-TRACK_W-32, h:TR.h-TRACK_W-32, r:44};
+  buildGATES();
+  PATH=buildPATH();
+  PATH_SAMP=Array.from({length:120},(_,i)=>{ const t=PATH.total*i/120, p=PATH.pos(t); return {t,x:p.x,y:p.y}; });
+  TORCHES=[{x:ISLE.x+10,y:ISLE.y+10},{x:ISLE.x+ISLE.w-10,y:ISLE.y+10},{x:ISLE.x+10,y:ISLE.y+ISLE.h-10},{x:ISLE.x+ISLE.w-10,y:ISLE.y+ISLE.h-10}];
+  buildBG();
+}
 function gateVia(gt,px,py){ // 성문 세그먼트 위에서 (px,py)에 가장 가까운 통과 지점
   if(gt.ax==='h') return {x:clamp(px,gt.x-gt.half,gt.x+gt.half), y:gt.y};
   return {x:gt.x, y:clamp(py,gt.y-gt.half,gt.y+gt.half)};
@@ -1141,7 +1167,7 @@ function startRound(r){
     if(b.final){ S.finalT=S.diff.finalT; S.roundDur=S.diff.finalT+5; toast(`⚔️ 마왕 강림! ${S.diff.finalT}초 안에 토벌하라!`); }
     else S.roundDur=26;
   }else{
-    for(let i=0;i<S.diff.cnt;i++) S.spawnQ.push({at:.6+i*10/S.diff.cnt});
+    { const cnt=S.diff.cnt+(curMap.mod.cnt||0); for(let i=0;i<cnt;i++) S.spawnQ.push({at:.6+i*10/cnt}); }
     S.roundDur=26;
     if(r===1) log(`WAVE 1 — 몬스터가 몰려옵니다!`);
   }
@@ -1165,7 +1191,7 @@ function stepRound(dt){
   if(!S.spawnQ.length&&S.roundSpawned>0&&!anyAlive&&!S.bonusGiven){
     S.bonusGiven=true;
     const bonus=Math.round(clearBonus(S.round)*MODS.gold);
-    S.gold+=bonus; if(S.relicFlags.manaWave) S.gems+=1;
+    S.gold+=bonus; if(S.relicFlags.manaWave) S.gems+=1; if(curMap.mod.mana) S.gems+=1;
     log(`✅ WAVE ${S.round} 격퇴! 보너스 <b>+${bonus}</b>`);
     AudioSys.coin();
     if(S.roundT<S.roundDur-4) S.roundT=S.roundDur-4;
@@ -1451,6 +1477,8 @@ function paintIsland(g){
   g.fillStyle=gr; g.beginPath(); g.arc(sp.x,sp.y,30,0,TAU); g.fill();
   g.strokeStyle='rgba(255,170,120,.85)'; g.lineWidth=2.6;
   for(let i=0;i<3;i++){ g.beginPath(); g.arc(sp.x,sp.y,8+i*7,i*2,i*2+4.4); g.stroke(); }
+  /* 바이옴 틴트 (맵별 분위기) */
+  if(curMap&&curMap.tint){ g.fillStyle=curMap.tint; g.fillRect(0,0,FW,FH); }
   /* 타이틀 리본 */
   g.fillStyle='rgba(8,14,26,.55)'; rr(g,FW/2-150,8,300,30,15); g.fill();
   g.fillStyle='#ffd54f'; g.font='800 15px sans-serif'; g.textAlign='center'; g.textBaseline='middle';
@@ -2154,6 +2182,7 @@ $('sndBtn').onclick=()=>{ const on=AudioSys.toggle(); $('sndBtn').textContent=on
    시작/종료/리셋
    ========================================================================= */
 function resetState(){
+  applyMap(curMap);
   S.relics=[]; S.relicFlags={}; S.relicPending=false; S.relicOpen=false; recalcMods();
   S.gold=100+40*metaLv('gold'); S.gems=2*metaLv('mana'); S.round=0; S.upgLv=metaLv('upg'); S.aspdLv=0;
   S.mobLimit=S.diff.limit+MODS.limit; S.rerollLeft=metaLv('reroll');
@@ -2163,7 +2192,7 @@ function resetState(){
   ['sp1','sp2','sp3'].forEach((k,i)=>$(k).classList.toggle('speedOn',i===0));
   $('pauseBtn').textContent='⏸';
   const chip=$('diffChip');
-  chip.textContent=S.diff.name; chip.style.color=S.diff.color; chip.style.border=`1px solid ${S.diff.color}55`;
+  chip.textContent=S.diff.name+(S.asc>0?` A${S.asc}`:'')+' · '+curMap.name; chip.style.color=S.diff.color; chip.style.border=`1px solid ${S.diff.color}55`;
   renderHudRelics();
   if(metaLv('hero')){ const hp=findSpawnSpot(); S.units.push(new Unit(pick(CHARS_BY_GRADE[1]).id,1,hp.x,hp.y)); }
   UI.log.innerHTML=''; refreshCard();
@@ -2182,7 +2211,7 @@ $('retryBtn').onclick=()=>{
   resetState();
   startRound(1);
 };
-$('menuBtn').onclick=()=>{ refreshStartRunes();
+$('menuBtn').onclick=()=>{ refreshStartRunes(); refreshAsc();
   $('endScreen').style.display='none';
   $('startScreen').style.display='flex';
   S.phase='start';
@@ -2197,9 +2226,24 @@ DIFFS.forEach((d,i)=>{
     [...$('diffPick').children].forEach((c,j)=>c.classList.toggle('on',j===i)); };
   $('diffPick').appendChild(b);
 });
+/* 맵 선택 */
+MAPS.forEach((m,i)=>{ const b=document.createElement('button'); b.className='diffbtn'+(curMap===m?' on':'');
+  b.style.setProperty('--dc','#8fc060');
+  b.innerHTML=`<span style="color:#cfe0b0;font-weight:900">${m.name}</span><small>${m.desc}</small>`;
+  b.onclick=()=>{ curMap=m; AudioSys.ui(); [...$('mapPick').children].forEach((c,j)=>c.classList.toggle('on',j===i)); };
+  $('mapPick').appendChild(b);
+});
+/* 어센션 스테퍼 */
+function refreshAsc(){ const mx=META.ascMax||0;
+  $('ascLv').textContent='Lv.'+(S.asc||0)+(mx>0?` (해금 ${mx})`:'');
+  $('ascDown').disabled=(S.asc||0)<=0; $('ascUp').disabled=(S.asc||0)>=mx; }
+$('ascDown').onclick=()=>{ S.asc=Math.max(0,(S.asc||0)-1); AudioSys.ui(); refreshAsc(); };
+$('ascUp').onclick=()=>{ S.asc=Math.min(META.ascMax||0,(S.asc||0)+1); AudioSys.ui(); refreshAsc(); };
 function showEnd(win,reason){
-  const earned=Math.round(S.round*3 + S.kills*0.4 + (win?150:0));
-  META.runes=(META.runes||0)+earned; saveMeta(); S.lastRunes=earned;
+  const earned=Math.round((S.round*3 + S.kills*0.4 + (win?150:0)) * (1+0.25*(S.asc||0)));
+  META.runes=(META.runes||0)+earned; S.lastRunes=earned;
+  if(win){ META.ascMax=Math.max(META.ascMax||0, (S.asc||0)+1); }
+  saveMeta();
   const t=$('endTitle');
   t.textContent=win?`🏆 ${S.diff.name} 클리어!`:'☠️ 방어선 붕괴...';
   t.classList.toggle('lose',!win);
@@ -2629,7 +2673,7 @@ function renderMeta(){
 $('metaBtn').onclick=()=>{ AudioSys.ui&&AudioSys.ui(); openMeta(); };
 $('metaBack').onclick=()=>{ $('metaScreen').style.display='none'; $('startScreen').style.display='flex'; refreshStartRunes(); };
 function refreshStartRunes(){ const e=$('startRunes'); if(e) e.textContent=META.runes||0; }
-recalcMods(); refreshStartRunes();
+recalcMods(); refreshStartRunes(); refreshAsc();
 
 /* 부트 — 아틀라스 픽셀 디코딩 완료 후 스프라이트 빌드 (data URI는 complete=true여도 래스터화 미완 가능) */
 function boot(){ if(window.__booted) return; window.__booted=true;
