@@ -588,7 +588,7 @@ class Mob{
     if(this.boss){ explode(this.x,this.y,70,'#ffb74d',{debris:22}); addShake(10); S.hitStop=.13; }
     else S.fx.push({t:'flash',x:this.x,y:this.y,r:16,life:.12,max:.12,color:'#ffe9ad'});
     AudioSys.kill();
-    if(this.boss){ S.boss=null; if(this.boss.final) winGame(); }
+    if(this.boss){ const wasFinal=this.boss.final; S.boss=null; if(wasFinal) winGame(); else S.relicPending=true; }
   }
 }
 
@@ -1085,7 +1085,6 @@ function stepRound(dt){
     log(`✅ WAVE ${S.round} 격퇴! 보너스 <b>+${bonus}</b>`);
     AudioSys.coin();
     if(S.roundT<S.roundDur-4) S.roundT=S.roundDur-4;
-    if(bossFor(S.round)){ offerRelics(); }
   }
   // 다음 라운드
   if(S.roundT>=S.roundDur&&S.round<60){
@@ -2055,7 +2054,7 @@ $('sndBtn').onclick=()=>{ const on=AudioSys.toggle(); $('sndBtn').textContent=on
    시작/종료/리셋
    ========================================================================= */
 function resetState(){
-  S.relics=[]; S.relicFlags={}; recalcMods();
+  S.relics=[]; S.relicFlags={}; S.relicPending=false; S.relicOpen=false; recalcMods();
   S.gold=100+40*metaLv('gold'); S.gems=2*metaLv('mana'); S.round=0; S.upgLv=metaLv('upg'); S.aspdLv=0;
   S.mobLimit=S.diff.limit+MODS.limit; S.rerollLeft=metaLv('reroll');
   S.units.length=0; S.mobs.length=0; S.prj.length=0; S.fx.length=0; S.texts.length=0;
@@ -2155,9 +2154,10 @@ function step(dt){
 let last=performance.now();
 function frame(now){
   const dt=Math.min(.05,(now-last)/1000); last=now;
+  if(S.relicPending&&!S.relicOpen&&S.phase==='play'){ S.relicPending=false; offerRelics(); }
   if(S.hitStop>0){ S.hitStop-=dt; } // 히트스톱: 보스 처치 순간 시간 정지
   else if(S.phase==='play'&&!S.paused){
-    for(let i=0;i<S.speed;i++) step(dt);
+    for(let i=0;i<S.speed;i++){ step(dt); if(S.relicPending) break; }
   }
   render();
   if(typeof GPUFX!=='undefined'&&GPUFX.ok&&GPUFX.enabled) GPUFX.frame(dt);
@@ -2461,7 +2461,7 @@ function offerRelics(){
   const owned=new Set(S.relics.map(r=>r.id));
   const pool=RELICS.filter(r=>{ if(r.once) return true; if(r.flag) return !S.relicFlags[r.flag]; return true; });
   drawRelicChoices(pool, owned);
-  S.paused=true; $('relicScreen').style.display='flex';
+  S.paused=true; S.relicOpen=true; $('relicScreen').style.display='flex';
   $('rerollN').textContent=S.rerollLeft>0?`(${S.rerollLeft})`:'';
   $('relicReroll').style.display=S.rerollLeft>0?'inline-block':'none';
 }
@@ -2479,7 +2479,7 @@ function takeRelic(r){
   if(r.once) r.once();
   if(r.flag) S.relicFlags[r.flag]=true;
   S.relics.push(r); recalcMods(); renderHudRelics();
-  $('relicScreen').style.display='none'; S.paused=false;
+  $('relicScreen').style.display='none'; S.paused=false; S.relicOpen=false;
   log(`🔮 유물 획득 — <b style="color:#c8b6ff">${r.name}</b>`);
 }
 $('relicReroll').onclick=()=>{ if(S.rerollLeft<=0) return; S.rerollLeft--; AudioSys.ui();
