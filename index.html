@@ -124,6 +124,12 @@
   #ownedRelics span{font-size:16px;background:#1a1430;border:1px solid #4a3d6a;border-radius:8px;padding:2px 5px}
   #hudRelics{position:absolute;left:8px;top:8px;display:flex;flex-wrap:wrap;gap:3px;max-width:120px;z-index:5;pointer-events:none}
   #hudRelics span{font-size:15px;filter:drop-shadow(0 1px 2px #000)}
+  #synRows{display:flex;flex-direction:column;gap:4px}
+  .synrow{display:flex;align-items:center;gap:6px;font-size:11.5px;padding:3px 7px;border-radius:7px;background:#120e08;border:1px solid #2a2416;opacity:.55}
+  .synrow.on{opacity:1;border-color:#4a5a2e;background:#181c10}
+  .synrow .sc{font-weight:800;width:70px}
+  .synrow .sn{font-weight:800;color:#efe6d2;width:38px;font-variant-numeric:tabular-nums}
+  .synrow .se{flex:1;text-align:right;font-size:10.5px;font-weight:700}
   @keyframes fin{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
   #toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(10,8,4,.92);border:1px solid #5a4a2e;color:#f0dca8;
     font-size:14px;font-weight:800;padding:9px 20px;border-radius:24px;opacity:0;transition:opacity .25s;z-index:40;pointer-events:none;white-space:nowrap}
@@ -237,6 +243,10 @@
       </div>
     </div>
 
+    <div class="box" id="synBox">
+      <div class="boxtitle">🔗 직업 시너지 <span style="float:right;color:#5a6a48">같은 직업을 모으세요</span></div>
+      <div id="synRows"><div style="font-size:11px;color:#6d5f42;text-align:center;padding:4px 0">용병을 소집하면 시너지가 활성화됩니다</div></div>
+    </div>
     <div class="box">
       <div id="probs"></div>
     </div>
@@ -403,49 +413,84 @@ const STAR_MULT=[1,3.2,10.5];
 const SELL_BASE=[10,25,70,190,500];
 
 /* atk type 재사용: shoot/slash/pierce/cannon/lightning/quake/exec */
+/* cls: 전사 궁수 마법사 성기사 도적 (시너지 직업) */
 const CHARS=[
 /* 일반 */
-{id:'recruit',name:'신병',grade:0,tile:98,dmg:7,aspd:1.0,range:150,type:'shoot', desc:'훈련을 갓 마친 신병'},
-{id:'hunter', name:'사냥꾼',grade:0,tile:112,dmg:15,aspd:.55,range:275,type:'shoot', desc:'숲의 장거리 명사수 · 사거리 최강'},
-{id:'scout',  name:'척후병',grade:0,tile:88, dmg:5, aspd:1.9,range:135,type:'slash', desc:'재빠른 단검 연격'},
-{id:'shield', name:'방패병',grade:0,tile:96, dmg:10,aspd:.75,range:160,type:'slash',splash:44, desc:'광역 방패 밀치기'},
+{id:'recruit',name:'신병',grade:0,cls:'궁수',tile:98,dmg:7,aspd:1.0,range:150,type:'shoot', desc:'훈련을 갓 마친 신병'},
+{id:'hunter', name:'사냥꾼',grade:0,cls:'궁수',tile:112,dmg:15,aspd:.55,range:275,type:'shoot', desc:'숲의 장거리 명사수 · 사거리 최강'},
+{id:'scout',  name:'척후병',grade:0,cls:'도적',tile:88, dmg:5, aspd:1.9,range:135,type:'slash', desc:'재빠른 단검 연격'},
+{id:'shield', name:'방패병',grade:0,cls:'전사',tile:96, dmg:10,aspd:.75,range:160,type:'slash',splash:44, desc:'광역 방패 밀치기'},
+{id:'acolyte',name:'견습 사제',grade:0,cls:'성기사',tile:99,tint:'#cfe0ff',tintA:.35,dmg:9,aspd:1.0,range:175,type:'cannon',splash:40, desc:'약한 신성 폭격'},
+{id:'apprentice',name:'견습 마법사',grade:0,cls:'마법사',tile:84,tint:'#8ad0ff',tintA:.4,dmg:11,aspd:.9,range:180,type:'lightning',chain:2, desc:'약한 번개 2연쇄'},
 /* 고급 */
-{id:'ranger', name:'레인저',grade:1,tile:112,tint:'#3a78d0',tintA:.5,dmg:14,aspd:1.05,range:200,type:'shoot',targets:2, desc:'2연 사격'},
-{id:'lancer', name:'창병',  grade:1,tile:100,dmg:22,aspd:.85,range:175,type:'pierce',pw:24, desc:'일직선 관통 창격'},
-{id:'warrior',name:'전사',  grade:1,tile:85, dmg:24,aspd:.9, range:150,type:'slash',splash:52, desc:'광역 검격'},
-{id:'axeman', name:'투부병',grade:1,tile:86, dmg:32,aspd:.55,range:210,type:'cannon',splash:58, desc:'투척 도끼 폭발'},
+{id:'ranger', name:'레인저',grade:1,cls:'궁수',tile:112,tint:'#3a78d0',tintA:.5,dmg:14,aspd:1.05,range:200,type:'shoot',targets:2, desc:'2연 사격'},
+{id:'lancer', name:'창병',  grade:1,cls:'전사',tile:100,dmg:22,aspd:.85,range:175,type:'pierce',pw:24, desc:'일직선 관통 창격'},
+{id:'warrior',name:'전사',  grade:1,cls:'전사',tile:85, dmg:24,aspd:.9, range:150,type:'slash',splash:52, desc:'광역 검격'},
+{id:'axeman', name:'투부병',grade:1,cls:'전사',tile:86, dmg:32,aspd:.55,range:210,type:'cannon',splash:58, desc:'투척 도끼 폭발'},
+{id:'stalker',name:'추적자',grade:1,cls:'도적',tile:88,tint:'#6a4a2a',tintA:.45,dmg:16,aspd:1.5,range:155,type:'slash', desc:'고속 추격 참격'},
+{id:'sorcerer',name:'뇌술사',grade:1,cls:'마법사',tile:84,tint:'#5a78e0',tintA:.42,dmg:20,aspd:.95,range:190,type:'lightning',chain:3,slow:{f:.78,t:1.2}, desc:'번개 3연쇄'},
 /* 희귀 */
-{id:'mage',   name:'마법사',grade:2,tile:84, dmg:28,aspd:1.1,range:195,type:'lightning',chain:3,slow:{f:.72,t:1.4}, desc:'번개 3연쇄 + 둔화'},
-{id:'knight', name:'기사',  grade:2,tile:87, dmg:56,aspd:1.05,range:160,type:'slash',splash:54, desc:'광역 참격'},
-{id:'priest', name:'사제',  grade:2,tile:99, dmg:30,aspd:1.0,range:205,type:'cannon',splash:62,buff:.12, desc:'신성 폭격 + 주변 아군 공격력↑'},
-{id:'rogue',  name:'암살자',grade:2,tile:88, tint:'#2a2436',tintA:.55,dmg:44,aspd:1.3,range:170,type:'exec',bonusPct:.05, desc:'대상 현재 HP 비례 추가피해'},
+{id:'mage',   name:'마법사',grade:2,cls:'마법사',tile:84, dmg:28,aspd:1.1,range:195,type:'lightning',chain:3,slow:{f:.72,t:1.4}, desc:'번개 3연쇄 + 둔화'},
+{id:'knight', name:'기사',  grade:2,cls:'전사',tile:87, dmg:56,aspd:1.05,range:160,type:'slash',splash:54, desc:'광역 참격'},
+{id:'priest', name:'사제',  grade:2,cls:'성기사',tile:99, dmg:30,aspd:1.0,range:205,type:'cannon',splash:62,buff:.12, desc:'신성 폭격 + 주변 아군 공격력↑'},
+{id:'rogue',  name:'암살자',grade:2,cls:'도적',tile:88, tint:'#2a2436',tintA:.55,dmg:44,aspd:1.3,range:170,type:'exec',bonusPct:.05, desc:'대상 현재 HP 비례 추가피해'},
+{id:'sharpshooter',name:'저격수',grade:2,cls:'궁수',tile:97,tint:'#3a5a3a',tintA:.4,dmg:70,aspd:.6,range:250,type:'shoot', desc:'초장거리 고화력 저격'},
+{id:'darkknight',name:'흑기사',grade:2,cls:'전사',tile:87,tint:'#20242c',tintA:.5,dmg:60,aspd:.95,range:155,type:'slash',splash:50, desc:'어둠의 광역 참격'},
 /* 영웅 */
-{id:'archmage',name:'대마법사',grade:3,tile:84,tint:'#c060ff',tintA:.42,dmg:130,aspd:.95,range:215,type:'lightning',chain:4,slow:{f:.6,t:1.6}, desc:'강력한 번개 4연쇄'},
-{id:'paladin', name:'성기사',  grade:3,tile:96,tint:'#ffd54f',tintA:.4, dmg:118,aspd:1.0,range:170,type:'slash',crit:{p:.3,m:3},splash:46, desc:'크리티컬 광역 성참'},
-{id:'berserker',name:'광전사', grade:3,tile:86,tint:'#d0302a',tintA:.42,dmg:64, aspd:2.4,range:150,type:'slash',splash:38, desc:'초고속 광역 난격'},
-{id:'warlord', name:'용병왕',  grade:3,tile:87,tint:'#40b0e0',tintA:.4, dmg:160,aspd:.8, range:160,type:'quake',stun:{p:.18,t:1}, desc:'대지 강타 + 기절'},
+{id:'archmage',name:'대마법사',grade:3,cls:'마법사',tile:84,tint:'#c060ff',tintA:.42,dmg:130,aspd:.95,range:215,type:'lightning',chain:4,slow:{f:.6,t:1.6}, desc:'강력한 번개 4연쇄'},
+{id:'paladin', name:'성기사',  grade:3,cls:'성기사',tile:96,tint:'#ffd54f',tintA:.4, dmg:118,aspd:1.0,range:170,type:'slash',crit:{p:.3,m:3},splash:46, desc:'크리티컬 광역 성참'},
+{id:'berserker',name:'광전사', grade:3,cls:'도적',tile:86,tint:'#d0302a',tintA:.42,dmg:64, aspd:2.4,range:150,type:'slash',splash:38, desc:'초고속 광역 난격'},
+{id:'warlord', name:'용병왕',  grade:3,cls:'전사',tile:87,tint:'#40b0e0',tintA:.4, dmg:160,aspd:.8, range:160,type:'quake',stun:{p:.18,t:1}, desc:'대지 강타 + 기절'},
+{id:'guardian',name:'수호기사',grade:3,cls:'성기사',tile:100,tint:'#7ad0ff',tintA:.4,dmg:90,aspd:.9,range:180,type:'cannon',splash:70,buff:.15, desc:'광역 수호 + 아군 공격력↑↑'},
+{id:'huntress',name:'마도궁수',grade:3,cls:'궁수',tile:112,tint:'#c060ff',tintA:.45,dmg:96,aspd:1.1,range:230,type:'shoot',targets:3, desc:'마력 화살 3연발'},
 /* 전설 */
-{id:'grandmage',name:'아크메이지',grade:4,tile:84,tint:'#40e0ff',tintA:.5,dmg:200,aspd:1.1,range:215,type:'quake',crit:{p:.3,m:2.6}, desc:'전장을 뒤흔드는 대마법'},
-{id:'swordsaint',name:'검성',    grade:4,tile:97,tint:'#ffe066',tintA:.48,dmg:520,aspd:.75,range:185,type:'slash',crit:{p:.35,m:3},splash:42,exec:{p:.12}, desc:'즉사 확률 · 크리티컬 광역 참격'},
-{id:'valkyrie', name:'발키리',   grade:4,tile:99,tint:'#a0e0ff',tintA:.42,dmg:210,aspd:1.9,range:195,type:'slash',crit:{p:.4,m:3},splash:40, desc:'여신의 크리티컬 난무'},
+{id:'grandmage',name:'아크메이지',grade:4,cls:'마법사',tile:84,tint:'#40e0ff',tintA:.5,dmg:200,aspd:1.1,range:215,type:'quake',crit:{p:.3,m:2.6}, desc:'전장을 뒤흔드는 대마법'},
+{id:'swordsaint',name:'검성',    grade:4,cls:'전사',tile:97,tint:'#ffe066',tintA:.48,dmg:520,aspd:.75,range:185,type:'slash',crit:{p:.35,m:3},splash:42,exec:{p:.12}, desc:'즉사 확률 · 크리티컬 광역 참격'},
+{id:'valkyrie', name:'발키리',   grade:4,cls:'성기사',tile:99,tint:'#a0e0ff',tintA:.42,dmg:210,aspd:1.9,range:195,type:'slash',crit:{p:.4,m:3},splash:40,buff:.1, desc:'여신의 크리티컬 난무 + 아군 버프'},
+{id:'shadowlord',name:'그림자군주',grade:4,cls:'도적',tile:88,tint:'#40206a',tintA:.55,dmg:180,aspd:2.0,range:180,type:'exec',bonusPct:.08,exec:{p:.15}, desc:'즉사 확률 · HP 비례 처형'},
 ];
 const CHARS_BY_GRADE=[[],[],[],[],[]];
 CHARS.forEach(c=>CHARS_BY_GRADE[c.grade].push(c));
 
+/* ---- 직업 시너지 (오토체스식) ---- */
+const SYN_DEF={
+  전사:  {icon:'⚔️', color:'#e8a726', tiers:[{n:3,atk:.20},{n:6,atk:.45}], eff:'전사 공격력'},
+  궁수:  {icon:'🏹', color:'#6fae5a', tiers:[{n:2,range:.18},{n:4,range:.35,aspd:.15}], eff:'궁수 사거리·공속'},
+  마법사:{icon:'🔮', color:'#c060ff', tiers:[{n:2,atk:.30},{n:4,atk:.65}], eff:'마법 피해'},
+  성기사:{icon:'🛡️', color:'#7ad0ff', tiers:[{n:2,team:.10},{n:4,team:.22}], eff:'전 아군 공격력'},
+  도적:  {icon:'🗡️', color:'#ff6a8a', tiers:[{n:2,aspd:.25},{n:4,aspd:.50}], eff:'도적 공속'},
+};
+function computeSyn(){
+  const cnt={}; S.units.forEach(u=>{ cnt[u.cls]=(cnt[u.cls]||0)+1; });
+  const syn={atk:{},aspd:{},range:{},team:1,active:[]};
+  for(const cls in SYN_DEF){
+    const c=cnt[cls]||0; let tier=null,ti=-1;
+    SYN_DEF[cls].tiers.forEach((t,i)=>{ if(c>=t.n){ tier=t; ti=i; } });
+    if(tier){
+      if(tier.atk) syn.atk[cls]=1+tier.atk;
+      if(tier.aspd) syn.aspd[cls]=1+tier.aspd;
+      if(tier.range) syn.range[cls]=1+tier.range;
+      if(tier.team) syn.team*=1+tier.team;
+    }
+    if(c>0) syn.active.push({cls,c,ti,tier});
+  }
+  S.syn=syn;
+}
+
 /* 보스 몬스터 */
 const BOSSES=[
  {round:5, name:'슬라임 킹',   tile:108,tint:'#3ad06a',tintA:.3, hpMul:12,gas:1,size:60,speed:52},
- {round:10,name:'독거미 여왕', tile:122,tint:'#a060d0',tintA:.35,hpMul:28,gas:3,size:62,speed:48},
+ {round:10,name:'독거미 여왕', tile:122,tint:'#a060d0',tintA:.35,hpMul:28,gas:3,size:62,speed:48,mech:'summon'},
  {round:15,name:'해골 장군',   tile:121,tint:'#c0c0d0',tintA:.25,hpMul:16,gas:2,size:62,speed:50},
- {round:20,name:'게 군주',     tile:110,tint:'#e05030',tintA:.3, hpMul:32,gas:3,size:64,speed:54},
+ {round:20,name:'게 군주',     tile:110,tint:'#e05030',tintA:.3, hpMul:32,gas:3,size:64,speed:54,mech:'enrage'},
  {round:25,name:'광란의 미믹', tile:92, hpMul:18,gas:2,size:62,speed:58},
- {round:30,name:'거대 슬라임', tile:109,tint:'#d0a040',tintA:.3, hpMul:34,gas:3,size:66,speed:50},
+ {round:30,name:'거대 슬라임', tile:109,tint:'#d0a040',tintA:.3, hpMul:34,gas:3,size:66,speed:50,mech:'summon'},
  {round:35,name:'맹독 전갈',   tile:120,tint:'#8020a0',tintA:.35,hpMul:38,gas:4,size:64,speed:60},
- {round:40,name:'강철 해골기사',tile:121,tint:'#7088b0',tintA:.4, hpMul:24,gas:5,size:70,speed:40},
+ {round:40,name:'강철 해골기사',tile:121,tint:'#7088b0',tintA:.4, hpMul:24,gas:5,size:70,speed:40,mech:'enrage'},
  {round:45,name:'흑거미',      tile:122,tint:'#201828',tintA:.55,hpMul:30,gas:5,size:68,speed:56},
- {round:50,name:'화염 게 마수',tile:110,tint:'#ff4020',tintA:.45,hpMul:34,gas:6,size:72,speed:44},
- {round:55,name:'죽음의 기사', tile:121,tint:'#8040c0',tintA:.5, hpMul:38,gas:6,size:72,speed:42},
- {round:60,name:'마왕',        tile:20, tint:'#c02020',tintA:.4, hpMul:30,gas:12,size:84,speed:34,final:true},
+ {round:50,name:'화염 게 마수',tile:110,tint:'#ff4020',tintA:.45,hpMul:34,gas:6,size:72,speed:44,mech:'enrage'},
+ {round:55,name:'죽음의 기사', tile:121,tint:'#8040c0',tintA:.5, hpMul:38,gas:6,size:72,speed:42,mech:'summon'},
+ {round:60,name:'마왕',        tile:20, tint:'#c02020',tintA:.4, hpMul:30,gas:12,size:84,speed:34,final:true,mech:'both'},
 ];
 /* 일반 몬스터 4티어 */
 const MOB_TIERS=[
@@ -518,6 +563,7 @@ const S={
   units:[], mobs:[], prj:[], fx:[], texts:[],
   roundT:0, roundDur:26, spawnQ:[], cleared:false, bonusGiven:false,
   mobLimit:80, speed:1, paused:false, sel:null, selGroup:[], hoverBtn:null, shake:0, hitStop:0,
+  syn:{atk:{},aspd:{},range:{},team:1,active:[]},
   boss:null, finalT:0, kills:0, summons:0, time:0, best:0, uid:0,
 };
 const ECON={summon:20, upgBase:40, upgGrow:1.15, upgPct:.15, upgMax:40,
@@ -551,6 +597,7 @@ class Mob{
     const p=PATH.pos(this.d); this.x=p.x; this.y=p.y;
   }
   update(dt){
+    if(this.boss&&this.boss.mech) this.mech(dt);
     if(this.stunT>0){ this.stunT-=dt; }
     else{
       const sf=this.slowT>0?this.slowF:1;
@@ -559,6 +606,23 @@ class Mob{
     if(this.slowT>0) this.slowT-=dt;
     if(this.burnT>0){ this.burnT-=dt; this.damage(this.burnDps*dt,null,true); }
     const p=PATH.pos(Math.max(0,this.d)); this.x=p.x; this.y=p.y;
+  }
+  mech(dt){
+    const m=this.boss.mech;
+    if((m==='enrage'||m==='both') && !this.enraged && this.hp<this.maxhp*.4){
+      this.enraged=true; this.speed*=1.7;
+      addText(this.x,this.y-this.size*.62,'격노!','#ff5252',16);
+      S.fx.push({t:'ring',x:this.x,y:this.y,r0:10,r1:70,life:.4,max:.4,color:'#ff5252'}); addShake(4);
+    }
+    if(m==='summon'||m==='both'){
+      this.sumCd=(this.sumCd==null?6:this.sumCd)-dt;
+      if(this.sumCd<=0){ this.sumCd=7;
+        const alive=S.mobs.filter(x=>x.alive).length;
+        if(alive<S.mobLimit-4){ for(let k=0;k<2;k++){ const a=new Mob(Math.max(1,Math.floor(this.round*.5))); a.d=this.d-rnd(16,50); S.mobs.push(a); } }
+        addText(this.x,this.y-this.size*.62,'소환!','#c060ff',15);
+        S.fx.push({t:'ring',x:this.x,y:this.y,r0:8,r1:54,life:.35,max:.35,color:'#c060ff'});
+      }
+    }
   }
   damage(amt,opts,silent){
     if(!this.alive) return;
@@ -665,7 +729,7 @@ function trackWaypoints(p,q){ // 트랙 위 두 지점 — 차선을 따라 (짧
 class Unit{
   constructor(charId,star,x,y){
     this.id=S.uid++;
-    this.charId=charId; this.def=CHARS.find(k=>k.id===charId);
+    this.charId=charId; this.def=CHARS.find(k=>k.id===charId); this.cls=this.def.cls;
     this.star=star;
     this.x=x; this.y=y; this.tx=x; this.ty=y; this.route=[];
     this.walking=false; this.face=1; this.dustT=0;
@@ -673,9 +737,9 @@ class Unit{
   }
   get grade(){ return this.def.grade; }
   buffMul(){ let m=1; S.units.forEach(u=>{ if(u!==this&&u.def.buff&&dist2(u.x,u.y,this.x,this.y)<150*150) m+=u.def.buff; }); return m; }
-  rng(){ return this.def.range*MODS.range; }
-  dmg(){ const sb=1+(STAR_MULT[this.star-1]-1)*MODS.star; return this.def.dmg*sb*dmgMult()*this.buffMul()*MODS.atk; }
-  aspd(){ return this.def.aspd*aspdMult()*MODS.aspd; }
+  rng(){ return this.def.range*MODS.range*(S.syn.range[this.cls]||1); }
+  dmg(){ const sb=1+(STAR_MULT[this.star-1]-1)*MODS.star; return this.def.dmg*sb*dmgMult()*this.buffMul()*MODS.atk*(S.syn.atk[this.cls]||1)*S.syn.team; }
+  aspd(){ return this.def.aspd*aspdMult()*MODS.aspd*(S.syn.aspd[this.cls]||1); }
   dps(){
     let d=this.dmg()*this.aspd();
     if(this.def.crit) d*=1+this.def.crit.p*(this.def.crit.m-1);
@@ -1905,7 +1969,9 @@ function refreshCard(){
   UI.ucGrade.style.background=GRADES[u.grade].color+'33';
   UI.ucGrade.style.color=GRADES[u.grade].color;
   UI.ucStars.textContent='★'.repeat(u.star)+'☆'.repeat(3-u.star);
+  const sd=SYN_DEF[u.cls]||{icon:'',color:'#a89878'};
   UI.ucStat.innerHTML=
+    `<span style="color:${sd.color};font-weight:800">${sd.icon} ${u.cls}</span> 직업<br>`+
     `공격력 <b>${fmt(u.dmg())}</b> · 공속 <b>${u.aspd().toFixed(2)}/s</b> · 사거리 <b>${Math.round(u.rng())}</b><br>`+
     `DPS <b>${fmt(u.dps())}</b><br><span style="color:#a8d868">${u.def.desc}</span>`;
 }
@@ -1922,6 +1988,7 @@ function updateUI(){
   UI.gold.textContent=Math.floor(S.gold);
   UI.gem.textContent=S.gems;
   UI.dps.textContent=fmt(S.units.reduce((a,u)=>a+u.dps(),0));
+  renderSyn();
   UI.unitCount.textContent=`${S.units.length} / ${unitCap()}`;
   const empt=unitCap()-S.units.length;
   UI.summonCost.textContent=`${Math.round(ECON.summon*MODS.summon)} G · 자리 ${empt}`;
@@ -2119,8 +2186,19 @@ function showEnd(win,reason){
 /* =========================================================================
    메인 루프
    ========================================================================= */
+function renderSyn(){
+  const el=$('synRows'); if(!el) return;
+  const act=(S.syn.active||[]).slice().sort((a,b)=>(b.ti-a.ti)||(b.c-a.c));
+  if(!act.length){ el.innerHTML='<div style="font-size:11px;color:#6d5f42;text-align:center;padding:4px 0">용병을 소집하면 시너지가 활성화됩니다</div>'; return; }
+  el.innerHTML=act.map(a=>{ const d=SYN_DEF[a.cls], on=a.ti>=0, nextN=d.tiers.find(t=>a.c<t.n);
+    let eff; if(on){ const t=d.tiers[a.ti], v=Math.round((t.atk||t.aspd||t.range||t.team)*100); eff=`<span style="color:#a8d868">${d.eff} +${v}%</span>`; }
+    else eff=`<span style="color:#6d5f42">${nextN.n-a.c}명 더</span>`;
+    return `<div class="synrow ${on?'on':''}"><span class="sc" style="color:${d.color}">${d.icon} ${a.cls}</span><span class="sn">${a.c}${nextN?`/${nextN.n}`:''}</span><span class="se">${eff}</span></div>`;
+  }).join('');
+}
 function step(dt){
   if(S.phase!=='play') return;
+  computeSyn();
   S.time+=dt;
   stepRound(dt);
   if(S.phase!=='play') return;
