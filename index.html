@@ -500,17 +500,17 @@ function computeSyn(){
 /* 보스 몬스터 */
 const BOSSES=[
  {round:5, name:'슬라임 킹',   tile:108,tint:'#3ad06a',tintA:.3, hpMul:12,gas:1,size:60,speed:52},
- {round:10,name:'독거미 여왕', tile:122,tint:'#a060d0',tintA:.35,hpMul:28,gas:3,size:62,speed:48,mech:'summon'},
+ {round:10,name:'독거미 여왕', tile:122,tint:'#a060d0',tintA:.35,hpMul:28,gas:3,size:62,speed:48,mech:'enrage'},
  {round:15,name:'해골 장군',   tile:121,tint:'#c0c0d0',tintA:.25,hpMul:16,gas:2,size:62,speed:50},
  {round:20,name:'게 군주',     tile:110,tint:'#e05030',tintA:.3, hpMul:32,gas:3,size:64,speed:54,mech:'enrage'},
  {round:25,name:'광란의 미믹', tile:92, hpMul:18,gas:2,size:62,speed:58},
- {round:30,name:'거대 슬라임', tile:109,tint:'#d0a040',tintA:.3, hpMul:34,gas:3,size:66,speed:50,mech:'summon'},
+ {round:30,name:'거대 슬라임', tile:109,tint:'#d0a040',tintA:.3, hpMul:34,gas:3,size:66,speed:50,mech:'enrage'},
  {round:35,name:'맹독 전갈',   tile:120,tint:'#8020a0',tintA:.35,hpMul:38,gas:4,size:64,speed:60},
  {round:40,name:'강철 해골기사',tile:121,tint:'#7088b0',tintA:.4, hpMul:24,gas:5,size:70,speed:40,mech:'enrage'},
  {round:45,name:'흑거미',      tile:122,tint:'#201828',tintA:.55,hpMul:30,gas:5,size:68,speed:56},
  {round:50,name:'화염 게 마수',tile:110,tint:'#ff4020',tintA:.45,hpMul:34,gas:6,size:72,speed:44,mech:'enrage'},
- {round:55,name:'죽음의 기사', tile:121,tint:'#8040c0',tintA:.5, hpMul:38,gas:6,size:72,speed:42,mech:'summon'},
- {round:60,name:'마왕',        tile:20, tint:'#c02020',tintA:.4, hpMul:30,gas:12,size:84,speed:34,final:true,mech:'both'},
+ {round:55,name:'죽음의 기사', tile:121,tint:'#8040c0',tintA:.5, hpMul:38,gas:6,size:72,speed:42,mech:'enrage'},
+ {round:60,name:'마왕',        tile:20, tint:'#c02020',tintA:.4, hpMul:30,gas:12,size:84,speed:34,final:true,mech:'enrage'},
 ];
 /* 일반 몬스터 4티어 */
 const MOB_TIERS=[
@@ -635,15 +635,7 @@ class Mob{
       addText(this.x,this.y-this.size*.62,'격노!','#ff5252',16);
       S.fx.push({t:'ring',x:this.x,y:this.y,r0:10,r1:70,life:.4,max:.4,color:'#ff5252'}); addShake(4);
     }
-    if(m==='summon'||m==='both'){
-      this.sumCd=(this.sumCd==null?6:this.sumCd)-dt;
-      if(this.sumCd<=0){ this.sumCd=7;
-        const alive=S.mobs.filter(x=>x.alive).length;
-        if(alive<S.mobLimit-4){ for(let k=0;k<2;k++){ const a=new Mob(Math.max(1,Math.floor(this.round*.5))); a.d=this.d-rnd(16,50); S.mobs.push(a); } }
-        addText(this.x,this.y-this.size*.62,'소환!','#c060ff',15);
-        S.fx.push({t:'ring',x:this.x,y:this.y,r0:8,r1:54,life:.35,max:.35,color:'#c060ff'});
-      }
-    }
+    // 소환 기믹 비활성화 — 보스 라운드는 순수 타임어택 1:1
   }
   damage(amt,opts,silent){
     if(!this.alive) return;
@@ -675,7 +667,7 @@ class Mob{
     if(this.boss){ explode(this.x,this.y,70,'#ffb74d',{debris:22}); addShake(5); S.hitStop=.1; }
     else S.fx.push({t:'flash',x:this.x,y:this.y,r:16,life:.12,max:.12,color:'#ffe9ad'});
     AudioSys.kill();
-    if(this.boss){ const wasFinal=this.boss.final; S.boss=null; if(wasFinal) winGame(); else S.relicPending=true; }
+    if(this.boss){ const wasFinal=this.boss.final; S.boss=null; S.finalT=0; if(wasFinal) winGame(); else S.relicPending=true; }
   }
 }
 
@@ -1158,14 +1150,13 @@ function startRound(r){
   S.spawnQ=[];
   const b=bossFor(r);
   if(b){
-    S.spawnQ.push({at:.8,boss:b});
-    const extra=b.final?0:Math.round(S.diff.cnt*.6);
-    for(let i=0;i<extra;i++) S.spawnQ.push({at:1.6+i*.55});
+    S.spawnQ.push({at:.8,boss:b}); // 보스 라운드는 잡몹 없이 보스만
     log(`☠️ <b style="color:#ff7043">WAVE ${r} — 「${b.name}」 출현!</b>`);
-    S.fx.push({t:'banner',name:b.name,sub:b.final?'최후의 결전 — 시간 안에 토벌하라!':'보스 접근 중',life:2,max:2});
+    const tlimit = b.final ? S.diff.finalT : Math.round(S.diff.finalT*0.42); // 일반 보스 ~38~48초
+    S.finalT=tlimit; S.roundDur=tlimit+3;
+    S.fx.push({t:'banner',name:b.name,sub:`제한 ${tlimit}초 — 시간 내 토벌하지 못하면 패배!`,life:2,max:2});
     AudioSys.boss();
-    if(b.final){ S.finalT=S.diff.finalT; S.roundDur=S.diff.finalT+5; toast(`⚔️ 마왕 강림! ${S.diff.finalT}초 안에 토벌하라!`); }
-    else S.roundDur=26;
+    toast(b.final?`⚔️ 마왕 강림! ${tlimit}초 안에 토벌하라!`:`⏱ 보스전! ${tlimit}초 안에 처치하지 못하면 패배`);
   }else{
     { const cnt=S.diff.cnt+(curMap.mod.cnt||0); for(let i=0;i<cnt;i++) S.spawnQ.push({at:.6+i*10/cnt}); }
     S.roundDur=26;
@@ -1184,7 +1175,7 @@ function stepRound(dt){
   // 최종 보스 타이머
   if(S.finalT>0){
     S.finalT-=dt;
-    if(S.finalT<=0&&S.boss){ loseGame('시간 초과! 마왕을 처치하지 못했습니다'); return; }
+    if(S.finalT<=0&&S.boss){ loseGame(`시간 초과! 「${S.boss.boss.name}」를 처치하지 못했습니다`); return; }
   }
   // 전멸 보너스 & 빠른 진행
   const anyAlive=S.mobs.some(m=>m.alive&&m.round===S.round);
