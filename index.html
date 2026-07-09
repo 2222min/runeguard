@@ -668,8 +668,8 @@ const ECON={summon:20, upgBase:40, upgGrow:1.15, upgPct:.15, upgMax:40,
 const mobHP=r=>16*Math.pow(1.22,Math.min(r,20))
   *Math.pow(1.15,clamp(r-20,0,20))
   *Math.pow(1.12,Math.max(0,r-40));
-const mobGold=r=>2+Math.floor(r/5);
-const clearBonus=r=>30+Math.floor(r*3);
+const mobGold=r=>1+Math.floor(r/5);
+const clearBonus=r=>15+Math.floor(r*2);
 const dmgMult=()=>1+ECON.upgPct*S.upgLv;
 const aspdMult=()=>1+ECON.aspdPct*S.aspdLv;
 
@@ -1253,7 +1253,13 @@ const THEMES=[
   {minR:18,name:'광포 창궐',   cnt:1.05, e:[[CRE.skull,'brute',2],[CRE.bat,'swift',2],[CRE.golem,'tank',1]]},
   {minR:22,name:'심연 혼전',   cnt:1.1,  e:[[CRE.frost,'armor',1],[CRE.snake,'brute',1],[CRE.bat,'swift',2],[CRE.golem,'tank',1],[CRE.spider,'swarm',2]]},
 ];
-function themeFor(r){ const pool=THEMES.filter(t=>t.minR<=r); return pool[(r*5+(r>>1))%pool.length]; }
+function themeFor(r){ const pool=THEMES.filter(t=>t.minR<=r);
+  if(r<=1){ S.themeSeq=0; S.lastThemeIdx=-1; }
+  if(pool.length<=1) return pool[0];
+  S.themeSeq=(S.themeSeq||0)+1;
+  let idx=(S.themeSeq*3+(S.themeSeq&1))%pool.length;   // 비선형 회전
+  if(idx===S.lastThemeIdx) idx=(idx+1)%pool.length;    // 직전과 동일 방지
+  S.lastThemeIdx=idx; return pool[idx]; }
 function rollEntry(th){ const tot=th.e.reduce((a,x)=>a+x[2],0); let k=Math.random()*tot;
   for(const x of th.e){ k-=x[2]; if(k<=0) return x; } return th.e[0]; }
 
