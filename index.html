@@ -246,7 +246,7 @@
           <button id="gradeBtn">⬆️ 승급<small id="gradeSub">같은 등급 0/3</small></button>
           <button id="sellBtn">💰 방출<small id="sellSub">+10</small></button>
         </div>
-        <div style="font-size:10.5px;color:#5d7392;text-align:center;line-height:1.5">🖐 지면 클릭 = 이동 (관문 통해 <b style="color:#a89878">길목 주둔 가능</b>) · 빈 곳 드래그 = 박스 선택<br>합류·승급은 <b style="color:#a89878">선택 용병 포함</b> 3명 소모 · 버튼에 올리면 대상 표시</div>
+        <div style="font-size:10.5px;color:#5d7392;text-align:center;line-height:1.5">🖐 지면 클릭 = 이동 · 빈 곳 드래그 = 박스 선택<br>⚡ <b style="color:#a89878">더블클릭</b>=같은 종류 · <b style="color:#a89878">Ctrl+클릭</b>=같은 등급 전체<br>합류·승급은 선택 용병 포함 3명 소모</div>
       </div>
     </div>
 
@@ -2057,8 +2057,8 @@ cv.addEventListener('pointerdown',e=>{
   const {x,y}=canvasPos(e);
   const u=unitHit(x,y);
   if(u){
-    if(e.ctrlKey||e.metaKey){ // 같은 종류(같은 캐릭터) 전체 선택
-      S.selGroup=S.units.filter(k=>k.charId===u.charId); S.sel=u; refreshCard(); AudioSys.ui();
+    if(e.ctrlKey||e.metaKey){ // 같은 등급 전체 선택 (관리·승급 정리용)
+      S.selGroup=S.units.filter(k=>k.grade===u.grade); S.sel=u; refreshCard(); AudioSys.ui();
       drag={u, sx:x, sy:y, cx:x, cy:y, active:false, noReselect:true};
     }else if(e.shiftKey){ // 부대에 추가/제거
       const i=S.selGroup.indexOf(u);
@@ -2111,7 +2111,7 @@ cv.addEventListener('pointerup',e=>{
   }
 });
 cv.addEventListener('pointercancel',()=>{ drag=null; box=null; });
-/* 더블클릭 = Ctrl+클릭처럼 같은 종류(같은 캐릭터) 전체 선택 */
+/* 더블클릭 = 같은 종류(캐릭터) 전체 · Ctrl+클릭 = 같은 등급 전체 */
 cv.addEventListener('dblclick',e=>{ if(S.phase!=='play') return;
   const {x,y}=canvasPos(e); const u=unitHit(x,y); if(!u) return;
   drag=null; box=null;
