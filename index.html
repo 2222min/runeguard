@@ -138,6 +138,77 @@
   .synrow .sn{font-weight:800;color:#efe6d2;width:38px;font-variant-numeric:tabular-nums}
   .synrow .se{flex:1;text-align:right;font-size:10.5px;font-weight:700}
   @keyframes fin{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  /* ============================================================
+     UI POLISH v2 — 프로덕션 셸 시각 다듬기 (로직 무관, 순수 스타일)
+     ============================================================ */
+  #stage{z-index:1}
+  /* 은은한 오로라 앰비언트 */
+  body::before{content:'';position:fixed;inset:-15%;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(620px 440px at 18% 12%, rgba(126,96,205,.10), transparent 62%),
+      radial-gradient(720px 520px at 84% 88%, rgba(210,158,74,.11), transparent 62%),
+      radial-gradient(500px 500px at 55% 50%, rgba(90,150,220,.05), transparent 70%);
+    animation:auroraDrift 26s ease-in-out infinite alternate}
+  @keyframes auroraDrift{from{transform:translate3d(-2%,-1.5%,0) scale(1)}to{transform:translate3d(2%,2%,0) scale(1.07)}}
+  /* 필드 테두리 골드 헤어라인 + 상단 광원 */
+  #fieldWrap{box-shadow:0 14px 48px rgba(0,0,0,.6), inset 0 0 0 1px rgba(232,200,106,.16), inset 0 2px 0 rgba(255,240,200,.06)}
+  /* 패널 박스: 상단 하이라이트 + 깊이 */
+  .box{box-shadow:0 6px 18px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,240,200,.05);
+    border-color:rgba(90,76,44,.7);backdrop-filter:blur(2px)}
+  /* 박스 타이틀: 앞쪽 액센트 바 */
+  .boxtitle{display:flex;align-items:center;gap:7px}
+  .boxtitle::before{content:'';width:3px;height:12px;border-radius:2px;
+    background:linear-gradient(180deg,var(--gold),#a5842e);box-shadow:0 0 6px rgba(232,200,106,.5);flex-shrink:0}
+  /* 공용 버튼: 인셋 광택 + 포커스 링 + 부드러운 모션 */
+  button{box-shadow:inset 0 1px 0 rgba(255,255,255,.10), inset 0 -2px 5px rgba(0,0,0,.25), 0 2px 6px rgba(0,0,0,.25);
+    transition:filter .1s, transform .06s, box-shadow .18s}
+  button:hover:not(:disabled){transform:translateY(-1px)}
+  button:active:not(:disabled){transform:translateY(1px);box-shadow:inset 0 2px 6px rgba(0,0,0,.4)}
+  button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  /* 대형 버튼 & 소집: 광택 스윕 + 여유 있는 자간 */
+  .bigbtn,#summonBtn{position:relative;overflow:hidden;letter-spacing:.5px}
+  .bigbtn::after,#summonBtn::after{content:'';position:absolute;top:-20%;bottom:-20%;width:34%;left:-70%;
+    background:linear-gradient(105deg,transparent,rgba(255,255,255,.28),transparent);
+    transform:skewX(-16deg);pointer-events:none;animation:sheen 4.2s ease-in-out infinite}
+  @keyframes sheen{0%,74%{left:-70%}88%{left:135%}100%{left:135%}}
+  /* 소집 버튼: 소집 가능할 때 은은한 맥동 */
+  #summonBtn{border-color:#9fce68;box-shadow:0 4px 14px rgba(120,180,80,.28), inset 0 1px 0 rgba(255,255,255,.18)}
+  #summonBtn:not(:disabled){animation:summonPulse 2.6s ease-in-out infinite}
+  @keyframes summonPulse{0%,100%{box-shadow:0 4px 14px rgba(120,180,80,.28), inset 0 1px 0 rgba(255,255,255,.18)}
+    50%{box-shadow:0 5px 24px rgba(150,214,100,.5), inset 0 1px 0 rgba(255,255,255,.22)}}
+  /* 자원 칩: 등원소별 하단 액센트 + 표 정렬 숫자 + 큰 값 */
+  .res{position:relative;overflow:hidden;font-variant-numeric:tabular-nums}
+  .res span{font-size:17px}
+  .res::after{content:'';position:absolute;left:12%;right:12%;bottom:0;height:2px;border-radius:2px;
+    background:linear-gradient(90deg,transparent,var(--chip,#e8c86a),transparent);opacity:.7}
+  .res:nth-child(1){--chip:#e8c86a} .res:nth-child(2){--chip:#7ce8ff} .res:nth-child(3){--chip:#ffab91}
+  /* 웨이브 타이틀 */
+  #roundTitle{text-shadow:0 1px 3px rgba(0,0,0,.5)}
+  #roundTitle b{text-shadow:0 0 10px rgba(232,200,106,.45)}
+  #diffChip{box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+  /* 몬스터 한계 게이지: 임박 시 위험 맥동 */
+  #mobGaugeWrap.danger{border-color:#ff6b6b;animation:dangerPulse 1s ease-in-out infinite}
+  @keyframes dangerPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,80,80,0)}50%{box-shadow:0 0 12px 1px rgba(255,80,80,.55)}}
+  /* 다음 웨이브 진행바에 흐르는 광택 */
+  #nextBar{background-size:200% 100%;background-image:linear-gradient(90deg,#6b8a45,#9fce68,#6b8a45);animation:barFlow 2.4s linear infinite}
+  @keyframes barFlow{from{background-position:0 0}to{background-position:200% 0}}
+  /* 타이틀: 골드 그라디언트 + 은은한 흐름 */
+  .card h1{background:linear-gradient(92deg,#f4d888,#fff0c4 40%,#e8b95a 70%,#f4d888);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;background-size:200% auto;
+    animation:titleShine 6s linear infinite;filter:drop-shadow(0 2px 10px rgba(232,200,106,.28))}
+  @keyframes titleShine{from{background-position:0 0}to{background-position:200% 0}}
+  #relicScreen h1,#metaScreen h1{-webkit-text-fill-color:initial}
+  /* 난이도/지역 선택: 켜짐 상태 글로우 */
+  .diffbtn.on{box-shadow:0 0 0 1px var(--dc,#6fae5a), 0 4px 16px -4px var(--dc,#6fae5a)}
+  #mapPick button.on,#mapPick .on{box-shadow:0 0 0 1px #6fae5a, 0 4px 16px -4px rgba(111,174,90,.7)}
+  /* 스크롤바 다듬기 */
+  #panel::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#4a3f28,#2c2519);border-radius:3px}
+  #panel::-webkit-scrollbar-thumb:hover{background:#5a4d30}
+  /* 토스트 등장 */
+  #toast{box-shadow:0 8px 24px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08)}
+  /* 유물 카드: 광택 스윕 재활용 */
+  .reliccard{position:relative;overflow:hidden}
   #toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(10,8,4,.92);border:1px solid #5a4a2e;color:#f0dca8;
     font-size:14px;font-weight:800;padding:9px 20px;border-radius:24px;opacity:0;transition:opacity .25s;z-index:40;pointer-events:none;white-space:nowrap}
 </style>
@@ -570,10 +641,10 @@ let PATH=buildPATH();
    난이도
    ========================================================================= */
 const DIFFS=[
- {key:'easy',  name:'평화로운 변경', desc:'입문 · 몬스터 HP 70% · 한계 90',            hp:.7,  cnt:20, limit:90, gold:1, spd:1,    bossHp:1,    finalT:115, color:'#66d97e'},
- {key:'normal',name:'왕국 기사단',   desc:'표준 · 몬스터 HP 100% · 한계 80',           hp:1,   cnt:20, limit:80, gold:0, spd:1,    bossHp:1,    finalT:100, color:'#4da3ff'},
- {key:'hard',  name:'마경 원정',     desc:'몬스터 HP 160% · 24마리 · 한계 70',          hp:1.6, cnt:24, limit:70, gold:0, spd:1.08, bossHp:1.1,  finalT:95,  color:'#ffa726'},
- {key:'hell',  name:'심연의 균열',   desc:'몬스터 HP 230% · 26마리 · 한계 60 · 보스 강화', hp:2.3, cnt:26, limit:60, gold:0, spd:1.12, bossHp:1.25, finalT:90,  color:'#ff5567'},
+ {key:'easy',  name:'평화로운 변경', desc:'입문 · 몬스터 HP 75% · 한계 84',            hp:.75, cnt:21, limit:84, gold:1, spd:1,    bossHp:1,    finalT:110, color:'#66d97e'},
+ {key:'normal',name:'왕국 기사단',   desc:'표준 · 몬스터 HP 100% · 한계 74',           hp:1,   cnt:22, limit:74, gold:0, spd:1.03, bossHp:1,    finalT:96,  color:'#4da3ff'},
+ {key:'hard',  name:'마경 원정',     desc:'몬스터 HP 175% · 26마리 · 한계 64',          hp:1.75,cnt:26, limit:64, gold:0, spd:1.1,  bossHp:1.15, finalT:90,  color:'#ffa726'},
+ {key:'hell',  name:'심연의 균열',   desc:'몬스터 HP 250% · 28마리 · 한계 54 · 보스 강화', hp:2.5, cnt:28, limit:54, gold:0, spd:1.14, bossHp:1.3,  finalT:86,  color:'#ff5567'},
 ];
 /* =========================================================================
    게임 상태
@@ -589,9 +660,9 @@ const S={
 };
 const ECON={summon:20, upgBase:40, upgGrow:1.15, upgPct:.15, upgMax:40,
   aspdCost:4, aspdPct:.06, aspdMax:8, legCost:6, mythCost:15};
-const mobHP=r=>15*Math.pow(1.22,Math.min(r,20))
-  *Math.pow(1.14,clamp(r-20,0,20))
-  *Math.pow(1.105,Math.max(0,r-40));
+const mobHP=r=>16*Math.pow(1.22,Math.min(r,20))
+  *Math.pow(1.15,clamp(r-20,0,20))
+  *Math.pow(1.12,Math.max(0,r-40));
 const mobGold=r=>2+Math.floor(r/5);
 const clearBonus=r=>30+Math.floor(r*3);
 const dmgMult=()=>1+ECON.upgPct*S.upgLv;
@@ -1152,7 +1223,7 @@ function startRound(r){
   if(b){
     S.spawnQ.push({at:.8,boss:b}); // 보스 라운드는 잡몹 없이 보스만
     log(`☠️ <b style="color:#ff7043">WAVE ${r} — 「${b.name}」 출현!</b>`);
-    const tlimit = b.final ? S.diff.finalT : Math.round(S.diff.finalT*0.42); // 일반 보스 ~38~48초
+    const tlimit = b.final ? S.diff.finalT : Math.round(S.diff.finalT*0.40); // 일반 보스 ~35~44초
     S.finalT=tlimit; S.roundDur=tlimit+3;
     S.fx.push({t:'banner',name:b.name,sub:`제한 ${tlimit}초 — 시간 내 토벌하지 못하면 패배!`,life:2,max:2});
     AudioSys.boss();
@@ -2028,6 +2099,7 @@ function updateUI(){
   const mk=alive/S.mobLimit;
   UI.mobG.style.width=(mk*100)+'%';
   UI.mobG.style.background=mk>.72?'linear-gradient(90deg,#c62828,#ff5252)':mk>.45?'linear-gradient(90deg,#b8860b,#ffca4d)':'linear-gradient(90deg,#2e9e5b,#7ad98a)';
+  UI.mobG.parentElement.classList.toggle('danger',mk>.72);
   UI.mobT.textContent=`몬스터 ${alive} / ${S.mobLimit}`;
   UI.gold.textContent=Math.floor(S.gold);
   UI.gem.textContent=S.gems;
