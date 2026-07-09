@@ -1240,28 +1240,35 @@ const ARCH={
 const _mobSprCache={};
 function mobSpr(tile,tint){ const k=tile+'|'+(tint||'x');
   return _mobSprCache[k]||(_mobSprCache[k]=tileSprite(tile,{scale:3.3,tint:tint||undefined,tintA:tint?.5:0})); }
-const CRE={slime:108, crab:110, spider:122, skull:121, bat:120, golem:109, snake:123, frost:124};
-const THEMES=[
-  {minR:1, name:'척후 무리',   cnt:1,    e:[[CRE.slime,'normal',3],[CRE.crab,'normal',2]]},
-  {minR:1, name:'혼성 정찰',   cnt:1,    e:[[CRE.slime,'normal',2],[CRE.bat,'swift',2]]},
-  {minR:3, name:'질주 급습',   cnt:1.1,  e:[[CRE.bat,'swift',3],[CRE.spider,'swift',2]]},
-  {minR:5, name:'대군 돌격',   cnt:1.5,  e:[[CRE.slime,'swarm',3],[CRE.spider,'swarm',2]]},
-  {minR:7, name:'강골 정예',   cnt:.82,  e:[[CRE.golem,'tank',3],[CRE.crab,'normal',2]]},
-  {minR:9, name:'혼돈의 무리', cnt:1.1,  e:[[CRE.spider,'normal',2],[CRE.snake,'swift',2],[CRE.golem,'tank',1]]},
-  {minR:12,name:'방패 전열',   cnt:.95,  e:[[CRE.golem,'armor',3],[CRE.skull,'normal',2]]},
-  {minR:14,name:'서리 독사',   cnt:1.05, e:[[CRE.snake,'brute',2],[CRE.frost,'armor',2]]},
-  {minR:18,name:'광포 창궐',   cnt:1.05, e:[[CRE.skull,'brute',2],[CRE.bat,'swift',2],[CRE.golem,'tank',1]]},
-  {minR:22,name:'심연 혼전',   cnt:1.1,  e:[[CRE.frost,'armor',1],[CRE.snake,'brute',1],[CRE.bat,'swift',2],[CRE.golem,'tank',1],[CRE.spider,'swarm',2]]},
+/* 몹 생물 로스터 — 매 웨이브 한 종류가 회전 (직전 웨이브와 항상 다름) */
+const MOB_KINDS=[
+  {tile:108, name:'슬라임'},
+  {tile:121, name:'유령'},
+  {tile:122, name:'거미'},
+  {tile:120, name:'박쥐'},
+  {tile:110, name:'게'},
+  {tile:109, name:'골렘'},
+  {tile:123, name:'독사'},
+  {tile:124, name:'서리뱀'},
 ];
-function themeFor(r){ const pool=THEMES.filter(t=>t.minR<=r);
-  if(r<=1){ S.themeSeq=0; S.lastThemeIdx=-1; }
-  if(pool.length<=1) return pool[0];
-  S.themeSeq=(S.themeSeq||0)+1;
-  let idx=(S.themeSeq*3+(S.themeSeq&1))%pool.length;   // 비선형 회전
-  if(idx===S.lastThemeIdx) idx=(idx+1)%pool.length;    // 직전과 동일 방지
-  S.lastThemeIdx=idx; return pool[idx]; }
-function rollEntry(th){ const tot=th.e.reduce((a,x)=>a+x[2],0); let k=Math.random()*tot;
-  for(const x of th.e){ k-=x[2]; if(k<=0) return x; } return th.e[0]; }
+/* 웨이브 변주 — 대부분 일반, 진행할수록 특수 아키타입이 웨이브 전체에 가끔 부여 */
+const WAVE_MODS=[
+  {arch:'normal', cntMul:1,    minR:1},
+  {arch:'swift',  cntMul:1.15, minR:4},
+  {arch:'swarm',  cntMul:1.5,  minR:6},
+  {arch:'tank',   cntMul:.78,  minR:8},
+  {arch:'armor',  cntMul:.95,  minR:11},
+  {arch:'brute',  cntMul:1,    minR:15},
+];
+function waveOf(r){
+  if(r<=1) S.waveIx=0; else S.waveIx=(S.waveIx||0)+1;
+  const kind=MOB_KINDS[S.waveIx % MOB_KINDS.length];
+  const pool=WAVE_MODS.filter(m=>m.minR<=r);
+  const every = r<6?4 : (r<14?3:2);           // 특수 웨이브 간격 (진행할수록 잦아짐)
+  let mod=WAVE_MODS[0];
+  if(r>=4 && S.waveIx%every===0) mod=pool[(Math.floor(S.waveIx/every)*2+1)%pool.length]||WAVE_MODS[0];
+  const tag = mod.arch!=='normal' ? ARCH[mod.arch].tag : '';
+  return {tile:kind.tile, arch:mod.arch, cntMul:mod.cntMul||1, label:(tag?tag+' ':'')+kind.name, kind:kind.name}; }
 
 function startRound(r){
   S.round=r; S.roundT=0; S.cleared=false; S.bonusGiven=false; S.roundSpawned=0;
@@ -1277,14 +1284,14 @@ function startRound(r){
     AudioSys.boss();
     toast(b.final?`⚔️ 마왕 강림! ${tlimit}초 안에 토벌하라!`:`⏱ 보스전! ${tlimit}초 안에 처치하지 못하면 패배`);
   }else{
-    const th=themeFor(r); S.waveTheme=th;
-    const cnt=Math.max(6,Math.round((S.diff.cnt+(curMap.mod.cnt||0))*(th.cnt||1)));
-    for(let i=0;i<cnt;i++){ const e=rollEntry(th); S.spawnQ.push({at:.6+i*10/cnt, tile:e[0], arch:e[1]}); }
+    const w=waveOf(r); S.waveInfo=w;
+    const cnt=Math.max(6,Math.round((S.diff.cnt+(curMap.mod.cnt||0))*(w.cntMul||1)));
+    for(let i=0;i<cnt;i++) S.spawnQ.push({at:.6+i*10/cnt, tile:w.tile, arch:w.arch});
     S.roundDur=26;
-    if(r===1) log(`WAVE 1 — <b>${th.name}</b>! 몬스터가 몰려옵니다`);
-    else log(`WAVE ${r} — <b>${th.name}</b>`);
-    toast(`WAVE ${r} · ${th.name}`);
-    { const wt=document.getElementById('waveType'); if(wt) wt.textContent=th.name; }
+    if(r===1) log(`WAVE 1 — <b>${w.label}</b> 무리가 몰려옵니다!`);
+    else log(`WAVE ${r} — <b>${w.label}</b>`);
+    toast(`WAVE ${r} · ${w.label}`);
+    { const wt=document.getElementById('waveType'); if(wt) wt.textContent=w.label; }
   }
 }
 function stepRound(dt){
